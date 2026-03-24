@@ -191,9 +191,9 @@ export default function ProfilePage() {
               onChange={e => setProfile({...profile, experience_level: e.target.value})}
               className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none cursor-pointer appearance-none"
             >
-              <option value="principiante">Principiante (< 1 año)</option>
+              <option value="principiante">Principiante (&lt; 1 año)</option>
               <option value="intermedio">Intermedio (1-3 años)</option>
-              <option value="avanzado">Avanzado (> 3 años)</option>
+              <option value="avanzado">Avanzado (&gt; 3 años)</option>
             </select>
           </div>
         </div>
