@@ -51,12 +51,14 @@ export default function RegisterPage() {
       return;
     }
 
-    // 2. Insertar los datos vacíos en users_profile (Según la base de datos SQL provista)
-    // Usualmente esto se puede automatizar con un Trigger de Postgres,
-    // Pero como estamos controlando el Onboarding, al menos le damos paso libre
-    
-    // Redirigimos a Onboarding para que inicialice biométricas
-    router.push("/onboarding");
+    // 2. Verificar si se inició sesión automáticamente (Email Confirmations OFF)
+    if (authData.session) {
+      router.push("/onboarding");
+    } else {
+      // Email Confirmations ON or needs verification
+      setError("Registro exitoso. Revisa tu email para confirmar tu cuenta antes de continuar.");
+      setIsLoading(false);
+    }
     router.refresh();
   };
 

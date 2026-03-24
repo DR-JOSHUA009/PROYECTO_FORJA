@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MoveRight, MoveLeft, Activity, HeartPulse, Dumbbell, Calendar, Apple, Target } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 // Form Data Type
 interface OnboardingData {
@@ -29,6 +30,21 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // Si no hay sesión, mandamos a login
+        router.push("/login?message=Acceso restringido. Inicia sesión.");
+      } else {
+        setCheckingAuth(false);
+      }
+    };
+    checkUser();
+  }, [router]);
   
   const [data, setData] = useState<OnboardingData>({
     nombre: "", usuario: "",
@@ -108,6 +124,15 @@ export default function OnboardingFlow() {
       transition: { duration: 0.3, ease: "easeIn" }
     })
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 bg-[#0a0a0a]">
+        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+        <p className="text-white font-mono text-xs uppercase mt-6 tracking-widest animate-pulse">Verificando Credenciales...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 bg-[#0a0a0a] relative overflow-hidden">
