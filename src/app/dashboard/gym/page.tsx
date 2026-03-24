@@ -166,10 +166,10 @@ export default function GymModule() {
               <span className="text-primary font-mono tracking-widest uppercase mb-4 text-sm border border-primary/20 bg-primary/10 px-4 py-1.5 rounded-full">
                 Ejercicio {currentExerciseIdx + 1} de {todayRoutine.exercises.length}
               </span>
-              <h2 className="text-4xl md:text-6xl font-black mb-8 leading-tight">
+              <h2 className="text-3xl md:text-6xl font-black mb-6 md:mb-8 leading-tight">
                 {todayRoutine.exercises[currentExerciseIdx]?.name}
               </h2>
-              <div className="text-2xl text-text-secondary font-mono bg-white/5 border border-white/10 px-8 py-4 rounded-2xl mb-12">
+              <div className="text-xl md:text-2xl text-text-secondary font-mono bg-white/5 border border-white/10 px-6 py-3 md:px-8 md:py-4 rounded-2xl mb-8 md:mb-12">
                 {todayRoutine.exercises[currentExerciseIdx]?.sets} Series × <span className="text-white">{todayRoutine.exercises[currentExerciseIdx]?.reps} Reps</span>
               </div>
 
@@ -217,7 +217,7 @@ export default function GymModule() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 overflow-hidden shadow-2xl relative"
+              className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-2xl md:rounded-3xl p-6 md:p-8 overflow-hidden shadow-2xl relative"
             >
               <button 
                 onClick={() => setShowHistory(false)}
@@ -335,19 +335,20 @@ export default function GymModule() {
                   </div>
                   
                   <div className="flex flex-col gap-2">
-                    <div className="grid grid-cols-4 gap-2 text-[10px] text-text-muted uppercase tracking-widest font-mono pl-4">
+                    <div className="grid grid-cols-4 gap-2 text-[9px] md:text-[10px] text-text-muted uppercase tracking-widest font-mono pl-4">
                       <span>Serie</span>
-                      <span>Obj (Reps)</span>
-                      <span>Peso (lbs/kg)</span>
-                      <span>Hechas</span>
+                      <span>Obj</span>
+                      <span>Peso</span>
+                      <span className="hidden md:inline">Hechas</span>
+                      <span className="md:hidden">Log</span>
                     </div>
                     
                     {setsArray.map((_, sIdx) => (
                       <div key={sIdx} className="grid grid-cols-4 gap-2 items-center bg-background border border-white/5 p-2 px-4 rounded-xl hover:border-white/20 transition-colors group">
                         <span className="text-white font-bold group-hover:text-primary transition-colors">{sIdx + 1}</span>
                         <span className="text-text-secondary text-sm">{exercise.reps}</span>
-                        <input type="number" placeholder="0" className="w-16 h-10 bg-transparent text-white font-mono text-center border-b border-white/10 tracking-wider focus:border-white outline-none" />
-                        <input type="number" placeholder="-" className="w-16 h-10 bg-white/5 rounded-lg text-white font-mono text-center border border-transparent focus:border-white/50 outline-none" />
+                        <input type="number" placeholder="0" className="w-full max-w-[60px] h-10 bg-transparent text-white font-mono text-center border-b border-white/10 tracking-wider focus:border-white outline-none" />
+                        <input type="number" placeholder="-" className="w-full max-w-[60px] h-10 bg-white/5 rounded-lg text-white font-mono text-center border border-transparent focus:border-white/50 outline-none" />
                       </div>
                     ))}
                   </div>

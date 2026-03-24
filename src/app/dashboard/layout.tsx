@@ -88,35 +88,41 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </main>
 
       {/* BOTTOM NAV (Mobile) - Scrollable Glass Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full h-[72px] bg-[#050505]/80 backdrop-blur-2xl border-t border-white/5 z-50 flex items-center overflow-x-auto scrollbar-hide px-6 gap-8">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
-          
-          return (
-            <Link 
-              key={item.href} 
-              href={item.href}
-              className={`flex flex-col items-center justify-center min-w-[56px] h-full gap-1 transition-all active:scale-90 ${
-                isActive ? "text-white" : "text-text-muted opacity-60"
-              }`}
-            >
-              <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-white/10 shadow-[0_0_20px_rgba(255,255,255,0.05)]' : ''}`}>
-                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-              </div>
-              <span className={`text-[9px] font-bold uppercase tracking-tighter transition-all ${isActive ? 'opacity-100' : 'opacity-0 h-0'}`}>
-                {item.name}
-              </span>
-              {isActive && (
-                <motion.div 
-                  layoutId="activeTab"
-                  className="w-1 h-1 bg-white rounded-full mt-0.5 shadow-[0_0_10px_rgba(255,255,255,0.8)]" 
-                />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
+        {/* Shadow/Gradient Fades for scroll indication */}
+        <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+        <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+        
+        <nav className="h-[72px] bg-[#050505]/80 backdrop-blur-2xl border-t border-white/5 flex items-center overflow-x-auto scrollbar-hide px-6 gap-6">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href;
+            const Icon = item.icon;
+            
+            return (
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={`flex flex-col items-center justify-center min-w-[50px] h-full gap-1 transition-all active:scale-90 ${
+                  isActive ? "text-white" : "text-text-muted opacity-60"
+                }`}
+              >
+                <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-white/10 shadow-[0_0_20px_rgba(255,255,255,0.05)]' : ''}`}>
+                  <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                </div>
+                <span className={`text-[9px] font-bold uppercase tracking-tighter transition-all ${isActive ? 'opacity-100' : 'hidden'}`}>
+                  {item.name}
+                </span>
+                {isActive && (
+                  <motion.div 
+                    layoutId="activeTab"
+                    className="w-1 h-1 bg-white rounded-full mt-0.5 shadow-[0_0_10px_rgba(255,255,255,0.8)]" 
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
     </div>
   );
