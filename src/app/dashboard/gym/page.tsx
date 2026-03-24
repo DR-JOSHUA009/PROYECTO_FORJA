@@ -15,24 +15,48 @@ export default function GymModule() {
   const [focusMode, setFocusMode] = useState(false);
   const [currentExerciseIdx, setCurrentExerciseIdx] = useState(0);
   const [focusTimer, setFocusTimer] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const router = useRouter();
 
+  async function fetchRoutine() {
+    setLoading(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const days = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+    const today = days[new Date().getDay()];
+
+    const { data } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
+    setTodayRoutine(data || null);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    async function loadRoutine() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-      const today = days[new Date().getDay()];
-
-      const { data } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
-      setTodayRoutine(data || null);
-      setLoading(false);
-    }
-    loadRoutine();
+    fetchRoutine();
   }, []);
+
+  const handleGenerateMasterRoutine = async () => {
+    setIsGenerating(true);
+    toast("Forja está analizando tus datos maestros...", "info");
+    
+    try {
+      const res = await fetch("/api/gym/generate-routine", { method: "POST" });
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast("Rutina maestra de 5 días aplicada con éxito ⚡", "success");
+        fetchRoutine();
+      } else {
+        toast(data.error || "Error al generar la rutina", "error");
+      }
+    } catch (err) {
+      toast("Error de conexión con el motor maestro", "error");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -139,10 +163,20 @@ export default function GymModule() {
         </div>
         <div className="flex gap-2">
           <button 
-            onClick={() => router.push("/dashboard/agent?prompt=Analiza mis datos y genera la mejor rutina para hoy")}
-            className="h-10 px-4 rounded-xl bg-primary text-background flex items-center gap-2 text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(9,250,211,0.2)]"
+            onClick={handleGenerateMasterRoutine}
+            disabled={isGenerating}
+            className={`h-10 px-4 rounded-xl bg-primary text-background flex items-center gap-2 text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(9,250,211,0.2)] disabled:opacity-50 disabled:cursor-wait`}
           >
-            <Bot className="w-4 h-4" /> Generar con IA
+            {isGenerating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
+                Generando...
+              </>
+            ) : (
+              <>
+                <Bot className="w-4 h-4" /> Smart Generate
+              </>
+            )}
           </button>
           <button className="h-10 px-4 rounded-xl glass border border-white/10 hover:border-white/30 text-white flex items-center gap-2 text-sm font-medium transition-colors">
             <History className="w-4 h-4" /> Historial

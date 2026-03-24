@@ -69,14 +69,19 @@ function ChatContent() {
     loadHistory();
   }, [supabase]);
 
+  const processedRef = useRef(false);
+
   // Separate effect for initial prompt to ensure it can trigger even with history
   useEffect(() => {
-    if (initialPrompt && !loadingHistory) {
+    if (initialPrompt && !loadingHistory && !processedRef.current) {
+      processedRef.current = true;
       const timer = setTimeout(() => {
         executePrompt(initialPrompt);
-        // Clear prompt from URL to avoid re-triggering on refresh
-        window.history.replaceState({}, '', window.location.pathname);
-      }, 800);
+        // Clear prompt from URL to avoid re-triggering
+        const url = new URL(window.location.href);
+        url.searchParams.delete("prompt");
+        window.history.replaceState({}, '', url.pathname);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [initialPrompt, loadingHistory]);
