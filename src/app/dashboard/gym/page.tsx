@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Dumbbell, Plus, Timer, History, Save, Activity, X, Play, CheckCircle } from "lucide-react";
+import { Dumbbell, Plus, Timer, History, Save, Activity, X, Play, CheckCircle, Bot } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -138,6 +138,12 @@ export default function GymModule() {
           <p className="text-text-secondary">Bloque activo: <span className="text-white font-mono uppercase tracking-widest text-xs">{todayRoutine?.day_of_week || "Hoy"}</span></p>
         </div>
         <div className="flex gap-2">
+          <button 
+            onClick={() => router.push("/dashboard/agent?prompt=Analiza mis datos y genera la mejor rutina para hoy")}
+            className="h-10 px-4 rounded-xl bg-primary text-background flex items-center gap-2 text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(9,250,211,0.2)]"
+          >
+            <Bot className="w-4 h-4" /> Generar con IA
+          </button>
           <button className="h-10 px-4 rounded-xl glass border border-white/10 hover:border-white/30 text-white flex items-center gap-2 text-sm font-medium transition-colors">
             <History className="w-4 h-4" /> Historial
           </button>

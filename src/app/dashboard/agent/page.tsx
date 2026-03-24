@@ -1,15 +1,41 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import { Send, Bot, User, Sparkles, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
 import { Icon3D } from "@/components/ui/Icon3D";
+import Link from "next/link";
 
-export default function AgentChat() {
+import { useSearchParams } from "next/navigation";
+
+function TypewriterText({ text, onComplete }: { text: string, onComplete?: () => void }) {
+  const [displayedText, setDisplayedText] = useState("");
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (index < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText((prev) => prev + text[index]);
+        setIndex((prev) => prev + 1);
+      }, 15);
+      return () => clearTimeout(timeout);
+    } else if (onComplete) {
+      onComplete();
+    }
+  }, [index, text, onComplete]);
+
+  return <>{displayedText}</>;
+}
+
+import { Suspense } from "react";
+
+function ChatContent() {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<{ role: "agent" | "user", content: string }[]>([]);
+  const searchParams = useSearchParams();
+  const initialPrompt = searchParams.get("prompt");
+  const [messages, setMessages] = useState<{ role: "agent" | "user", content: string, action?: any }[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -24,7 +50,7 @@ export default function AgentChat() {
 
       const { data } = await supabase
         .from("agent_conversations")
-        .select("role, content")
+        .select("role, content, tool_used")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
 
@@ -39,9 +65,38 @@ export default function AgentChat() {
         ]);
       }
       setLoadingHistory(false);
+      
+      // Auto trigger if initial prompt exists
+      if (initialPrompt && !data?.length) {
+        setTimeout(() => executePrompt(initialPrompt), 500);
+      }
     }
     loadHistory();
-  }, [supabase]);
+  }, [supabase, initialPrompt]);
+
+  const executePrompt = async (text: string) => {
+    const userMsg = { role: "user" as const, content: text };
+    setMessages(prev => [...prev, userMsg]);
+    setIsTyping(true);
+    
+    try {
+      const res = await fetch("/api/agent/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [userMsg] })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessages(prev => [...prev, { 
+          role: "agent", 
+          content: data.reply,
+          action: data.act_type === "navigation" ? { href: data.section_href, label: data.btn_label } : null
+        }]);
+      }
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -65,7 +120,11 @@ export default function AgentChat() {
       const data = await res.json();
       
       if (res.ok) {
-        setMessages(prev => [...prev, { role: "agent", content: data.reply }]);
+        setMessages(prev => [...prev, { 
+          role: "agent", 
+          content: data.reply,
+          action: data.act_type === "navigation" ? { href: data.section_href, label: data.btn_label } : null
+        }]);
         if (data.act_type === "tool_called") {
           toast("FORJA ha modificado tu plan en tiempo real ⚡", "success");
         }
@@ -115,12 +174,30 @@ export default function AgentChat() {
               {msg.role === "agent" ? <Icon3D icon={Bot} size={24} color="white" /> : <User className="w-5 h-5 text-background" />}
             </div>
             
-            <div className={`p-5 rounded-2xl whitespace-pre-wrap flex flex-col justify-center text-[15px] leading-relaxed tracking-wide ${
+            <div className={`p-5 rounded-2xl flex flex-col justify-center text-[15px] leading-relaxed tracking-wide ${
               msg.role === "agent" 
                 ? "bg-white/5 text-white/90 border border-white/10 rounded-tl-none shadow-[0_10px_40px_rgba(0,0,0,0.6)]" 
                 : "bg-white text-background rounded-tr-none shadow-[0_10px_40px_rgba(255,255,255,0.05)] font-medium"
             }`}>
-              {msg.content}
+              <div className="whitespace-pre-wrap">
+                {msg.role === "agent" && i === messages.length - 1 && !loadingHistory ? (
+                  <TypewriterText text={msg.content} />
+                ) : (
+                  msg.content
+                )}
+              </div>
+              
+              {msg.action && (
+                <div className="mt-4 pt-4 border-t border-white/5">
+                  <Link 
+                    href={msg.action.href}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-background rounded-xl text-xs font-bold hover:scale-105 active:scale-95 transition-all w-fit shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    {msg.action.label}
+                  </Link>
+                </div>
+              )}
             </div>
           </motion.div>
         ))}
@@ -143,7 +220,7 @@ export default function AgentChat() {
         <div ref={bottomRef} className="h-1 bg-transparent" />
       </div>
 
-      {/* INPUT AREA (Fixed on mobile bottom over content, relative on desktop) */}
+      {/* INPUT AREA */}
       <div className="fixed bottom-[80px] md:bottom-auto left-0 md:left-auto w-full md:relative bg-[#050505] md:bg-transparent p-4 md:p-0 md:mt-4 border-t border-white/5 md:border-none z-40">
         <form onSubmit={handleSend} className="relative max-w-4xl mx-auto w-full">
           <input 
@@ -151,7 +228,7 @@ export default function AgentChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isTyping}
-            placeholder="Ej: Solo tengo 30 mins, reduce mi rutina a lo esencial..."
+            placeholder="Ej: Dame acceso al gym..."
             className="w-full h-14 bg-[#0a0a0a] border border-white/10 focus:border-white focus:bg-white/5 rounded-2xl px-6 pr-16 text-white outline-none transition-all placeholder:text-text-muted disabled:opacity-50"
           />
           <button 
@@ -162,10 +239,16 @@ export default function AgentChat() {
             <Send className="w-4 h-4 ml-0.5" />
           </button>
         </form>
-        <div className="text-center mt-3 text-[10px] text-text-muted uppercase tracking-widest font-mono hidden md:block">
-          La IA puede generar resultados asimétricos. Confirma siempre cambios severos.
-        </div>
       </div>
     </div>
   );
 }
+
+export default function AgentChat() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full text-white/50">Cargando Forja IA...</div>}>
+      <ChatContent />
+    </Suspense>
+  );
+}
+

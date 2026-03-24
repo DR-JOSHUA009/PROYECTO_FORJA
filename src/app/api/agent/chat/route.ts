@@ -150,8 +150,25 @@ export async function POST(req: Request) {
               weight_kg: { type: "number" },
               height_cm: { type: "number" },
               goal: { type: "string" },
-              experience_level: { type: "string" }
+              experience_level: { type: "string" },
+              full_name: { type: "string" },
+              username: { type: "string" }
             }
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "suggest_navigation",
+          description: "Muestra un botón de acceso directo a una sección específica si el usuario está perdido.",
+          parameters: {
+            type: "object",
+            properties: {
+              section: { type: "string", enum: ["perfil", "gym", "dieta", "cardio", "sueño", "stats", "logros"] },
+              label: { type: "string", description: "Texto del botón (ej: Ir al Gimnasio)" }
+            },
+            required: ["section", "label"]
           }
         }
       },
@@ -261,6 +278,16 @@ export async function POST(req: Request) {
 
           await supabase.from("users_profile").update(args).eq("user_id", user.id);
           responseText = `✅ Perfil actualizado. He ajustado tus parámetros maestros en la base de datos conforme a lo solicitado.`;
+        }
+        else if (toolCall.function.name === "suggest_navigation") {
+          const args = JSON.parse(toolCall.function.arguments);
+          const href = args.section === "perfil" ? "/dashboard/profile" : `/dashboard/${args.section}`;
+          return NextResponse.json({ 
+            reply: `Te he preparado un acceso directo para ir a la sección de **${args.section}**.`, 
+            act_type: "navigation", 
+            section_href: href,
+            btn_label: args.label 
+          });
         }
         else if (toolCall.function.name === "log_activity") {
           const args = JSON.parse(toolCall.function.arguments);
