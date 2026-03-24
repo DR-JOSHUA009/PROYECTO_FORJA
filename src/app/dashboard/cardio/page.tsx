@@ -75,7 +75,7 @@ export default function CardioModule() {
 
       if (data.success) {
         // Recargar
-        const { data: hData } = await supabase.from("cardio_sessions").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        const { data: hData } = await supabase.from("cardio_sessions").select("*").eq("user_id", user.id).order("date", { ascending: false });
         setHistory(hData || []);
         
         let kms = 0; let mins = 0;
@@ -84,6 +84,9 @@ export default function CardioModule() {
           mins += Number(s.duration_min || 0);
         });
         setStats({ kms, mins, count: hData?.length || 0 });
+        alert("¡Sesión de Cardio registrada! +200 XP");
+      } else {
+        alert("Error al guardar la sesión: " + data.error);
       }
     }
     

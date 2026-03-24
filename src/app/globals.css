@@ -80,6 +80,14 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
+@utility icon-3d {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 4px 12px rgba(255,255,255,0.1));
+  transition: transform 0.3s ease;
+  &:hover {
+    transform: scale(1.1) translateY(-2px) rotate(5deg);
+  }
+}
+
 @layer base {
   *, ::after, ::before {
     @apply border-border;

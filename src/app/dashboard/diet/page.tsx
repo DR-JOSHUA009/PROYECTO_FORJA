@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { Apple, Plus, Search, Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import WaterVessel from "@/components/dashboard/WaterVessel";
+import { Droplet } from "lucide-react";
 
 export default function DietModule() {
   const [loading, setLoading] = useState(true);
@@ -11,6 +13,8 @@ export default function DietModule() {
   const [dietPlans, setDietPlans] = useState<any[]>([]);
 
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [waterToday, setWaterToday] = useState(0);
+  const [isAddingWater, setIsAddingWater] = useState(false);
 
   const loadDiet = async () => {
     const supabase = createClient();
@@ -39,6 +43,14 @@ export default function DietModule() {
         fats: fData.reduce((acc, log) => acc + (log.fats || 0), 0),
       });
     }
+
+    const { data: wData } = await supabase
+      .from("water_logs")
+      .select("amount_ml")
+      .eq("user_id", user.id)
+      .eq("date", new Date().toISOString().split('T')[0]);
+    
+    setWaterToday(wData?.reduce((acc, l) => acc + (l.amount_ml || 0), 0) || 0);
     
     setLoading(false);
   }
@@ -50,6 +62,7 @@ export default function DietModule() {
   const [ingested, setIngested] = useState({ cals: 0, pro: 0, carbs: 0, fats: 0 });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [foodQuery, setFoodQuery] = useState("");
+  const [selectedMeal, setSelectedMeal] = useState("Desayuno");
 
   const handleAddFood = async () => {
     if (!foodQuery) return;
@@ -72,6 +85,7 @@ export default function DietModule() {
           protein: nutrition.protein,
           carbs: nutrition.carbs,
           fats: nutrition.fats,
+          meal_type: selectedMeal, // Use selected meal
           date: new Date().toISOString().split('T')[0]
         });
         
@@ -89,6 +103,30 @@ export default function DietModule() {
       console.error(err);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleAddWater = async (ml: number) => {
+    setIsAddingWater(true);
+    const supabase = createClient();
+    try {
+      const res = await fetch("/api/water", {
+        method: "POST",
+        body: JSON.stringify({ amount_ml: ml })
+      });
+      if (res.ok) {
+        setWaterToday(prev => prev + ml);
+        // Toast style better
+        const toast = document.createElement("div");
+        toast.className = "fixed bottom-10 right-10 glass p-4 text-white z-50 border border-white/20 animate-in fade-in slide-in-from-bottom-5 duration-300";
+        toast.innerHTML = `💧 Registrados ${ml}ml. ¡Sigue hidratándote!`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingWater(false);
     }
   };
 
@@ -123,24 +161,35 @@ export default function DietModule() {
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Nutrición <Apple className="text-emerald-400 w-6 h-6" />
+            Nutrición <Apple className="text-emerald-400 w-6 h-6 icon-3d" />
           </h1>
           <p className="text-text-secondary">Fase nutricional actual: <span className="text-white font-mono uppercase tracking-widest text-xs">{profile?.goal || "Mantenimiento"}</span></p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <input 
-            type="text" 
-            placeholder="Ej: 2 huevos y un café..." 
-            value={foodQuery}
-            onChange={e => setFoodQuery(e.target.value)}
-            className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:border-white transition-colors text-sm min-w-[200px]"
-          />
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto mt-4 md:mt-0">
+          <select 
+            value={selectedMeal}
+            onChange={e => setSelectedMeal(e.target.value)}
+            className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:border-white transition-colors text-xs font-mono uppercase tracking-widest"
+          >
+            {["Desayuno", "Almuerzo", "Merienda", "Cena"].map(m => (
+              <option key={m} value={m} className="bg-background">{m}</option>
+            ))}
+          </select>
+          <div className="relative flex-1 md:flex-none">
+            <input 
+              type="text" 
+              placeholder="Ej: 2 huevos y un café..." 
+              value={foodQuery}
+              onChange={e => setFoodQuery(e.target.value)}
+              className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:border-white transition-colors text-sm min-w-[200px] w-full"
+            />
+          </div>
           <button 
             onClick={handleAddFood}
             disabled={isAnalyzing || !foodQuery}
-            className="h-10 px-6 rounded-xl bg-white text-background flex items-center gap-2 text-sm font-bold shadow-[0_4px_15px_rgba(255,255,255,0.2)] hover:bg-white/90 transition-colors disabled:opacity-50"
+            className="h-10 px-6 rounded-xl bg-white text-background flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_15px_rgba(255,255,255,0.2)] hover:bg-white/90 transition-colors disabled:opacity-50"
           >
-            {isAnalyzing ? "Analizando..." : "Añadir"}
+            {isAnalyzing ? "..." : <Plus className="w-4 h-4" />}
           </button>
         </div>
       </header>
@@ -148,7 +197,7 @@ export default function DietModule() {
       {/* MACRO SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="md:col-span-1 glass p-6 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
-          <Flame className="w-8 h-8 text-orange-400 mb-2 opacity-80" />
+          <Flame className="w-8 h-8 text-orange-400 mb-2 opacity-80 icon-3d" />
           <span className="text-3xl font-bold text-white tracking-tight">{ingestedCals}</span>
           <span className="text-xs text-text-muted uppercase tracking-widest mt-1">/ {targetCals} KCALS</span>
           <div className="w-full h-1 bg-white/5 mt-4 rounded-full overflow-hidden">
@@ -186,9 +235,9 @@ export default function DietModule() {
              {["Desayuno", "Almuerzo", "Merienda", "Cena"].map((mealType) => {
                const logs = todayLogs.filter(l => l.meal_type === mealType);
                return (
-                 <div key={mealType} className="glass p-5 rounded-2xl border border-white/5 bg-white/2 hover:border-white/10 transition-all">
+                 <div key={mealType} className="glass p-5 rounded-2xl border border-white/5 bg-white/2 hover:border-white/10 transition-all group">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{mealType}</span>
+                      <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40 group-hover:text-white/80 transition-colors">{mealType}</span>
                       <span className="text-xs font-bold text-white/60">{Math.round(logs.reduce((acc, l) => acc + (l.calories || 0), 0))} kcal</span>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -271,6 +320,37 @@ export default function DietModule() {
         </div>
       </div>
 
+      {/* WATER SECTION */}
+      <div className="glass p-8 rounded-2xl border border-white/5 flex flex-col md:flex-row items-center gap-10 mt-12 mb-12">
+        <div className="flex flex-col gap-2 flex-1 text-center md:text-left">
+          <h2 className="text-xl font-bold text-white flex items-center justify-center md:justify-start gap-2">
+            Hidratación Diaria <Droplet className="text-blue-400 w-5 h-5 shadow-[0_0_10px_rgba(96,165,250,0.5)]" />
+          </h2>
+          <p className="text-text-secondary text-sm max-w-md">
+            Tu meta calculada es de <span className="text-white font-bold">{Math.round(weight * 35)}ml</span> diarios. Beber agua suficiente optimiza tu recuperación y quema calórica.
+          </p>
+          <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6">
+            {[250, 500, 750].map(ml => (
+              <button 
+                key={ml}
+                onClick={() => handleAddWater(ml)}
+                disabled={isAddingWater}
+                className="h-12 px-6 rounded-xl border border-white/10 text-white font-mono text-xs hover:border-white transition-all hover:bg-white/5 active:scale-95 disabled:opacity-50"
+              >
+                +{ml}ml
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="flex flex-col items-center gap-4 bg-white/2 p-6 rounded-3xl border border-white/5 shadow-2xl">
+          <WaterVessel percentage={(waterToday / (weight * 35)) * 100} />
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-mono mb-1">PROGRESO</span>
+            <span className="text-xl font-bold text-white font-mono">{waterToday} <span className="text-text-muted text-sm">/ {Math.round(weight * 35)}ml</span></span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

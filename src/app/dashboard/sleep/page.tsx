@@ -80,7 +80,7 @@ export default function SleepModule() {
           .limit(7);
         setHistory(sData || []);
 
-        if (sData) {
+        if (sData && sData.length > 0) {
           let total = 0; let streak = 0; let best = 0;
           sData.forEach(log => {
             total += Number(log.hours_slept || 0);
@@ -89,6 +89,9 @@ export default function SleepModule() {
           });
           setStats({ avgHours: total / (sData.length || 1), streak, bestNight: best });
         }
+        alert("¡Registro de sueño guardado! +150 XP");
+      } else {
+        alert("Error al guardar: " + data.error);
       }
     }
     
