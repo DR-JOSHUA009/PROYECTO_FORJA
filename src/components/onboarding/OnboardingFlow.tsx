@@ -52,14 +52,25 @@ export default function OnboardingFlow() {
     }
   };
 
-  const submitData = () => {
+  const submitData = async () => {
     setIsSubmitting(true);
-    // Simulating API call to generate biological plan
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      if (res.ok) {
+        router.push("/dashboard/home");
+      } else {
+        const err = await res.json();
+        alert("Error: " + (err.error || "Ocurrió un error al guardar"));
+        setIsSubmitting(false);
+      }
+    } catch (err) {
+      console.error(err);
       setIsSubmitting(false);
-      // router.push("/dashboard/home"); // Descomentar al integrar Next.js router real
-      alert("¡Plan generado! (Lógica del Agente Groq simulada para la UI)");
-    }, 2500);
+    }
   };
 
   const isStepValid = () => {
@@ -321,7 +332,7 @@ export default function OnboardingFlow() {
                   {[
                     { val: "cut", label: "Definición (Quemar Grasa)" },
                     { val: "bulk", label: "Volumen (Ganar Masa Muscular)" },
-                    { val: "maintain", label: "Mantenimiento Biológico" },
+                    { val: "maintain", label: "Mantenimiento (Recomposición)" },
                     { val: "endurance", label: "Resistencia Cardiovascular" }
                   ].map(obj => (
                     <button 

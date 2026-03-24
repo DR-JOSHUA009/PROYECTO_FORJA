@@ -26,7 +26,7 @@ export default function ForgotPasswordPage() {
 
       <AuthCard
         title="Recuperación de Llaves"
-        subtitle="Si tu identidad física se ha perdido, enviaremos un código de restauración de parámetros."
+        subtitle="Te enviaremos un correo para recuperar tu contraseña."
         backLink="/login"
       >
         {!success ? (

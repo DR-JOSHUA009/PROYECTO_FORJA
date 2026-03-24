@@ -63,7 +63,7 @@ export default function MockupsScroll() {
             className="glass flex-1 min-w-[300px] h-[550px] bg-background flex flex-col p-6 border border-white/10 relative -top-6"
             style={{ transformStyle: 'preserve-3d' }}
           >
-            <div className="text-xs text-text-muted uppercase tracking-widest font-mono mb-4">Ingesta Bioquímica</div>
+            <div className="text-xs text-text-muted uppercase tracking-widest font-mono mb-4">Tus Macros</div>
             <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary mx-auto mb-8"></div>
             <div className="flex gap-2 w-full mb-8 mt-4">
               <div className="flex-1 h-32 bg-white/5 rounded-lg"></div>

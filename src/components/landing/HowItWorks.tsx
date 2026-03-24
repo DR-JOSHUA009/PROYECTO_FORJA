@@ -48,7 +48,7 @@ export default function HowItWorks() {
     {
       icon: <Cpu className="w-10 h-10 text-primary" strokeWidth={1.5} />,
       title: "2. La IA diseña tu plan",
-      desc: "Nuestro LLM generará la rutina inicial y la nutrición bioquímica optimizada matemáticamente para tu progreso.",
+      desc: "Nuestro LLM generará la rutina inicial y la nutrición personalizada para potenciar tu progreso.",
     },
     {
       icon: <MessageSquare className="w-10 h-10 text-white" strokeWidth={1.5} />,
@@ -69,7 +69,7 @@ export default function HowItWorks() {
       <div className="sticky top-0 h-screen overflow-hidden flex flex-col items-center justify-center px-6 pointer-events-none">
         
         <h2 className="absolute top-24 md:top-32 text-3xl font-bold tracking-tight text-white z-10 text-center">
-          El Algoritmo Biológico
+          El Algoritmo Inteligente
         </h2>
 
         {/* 

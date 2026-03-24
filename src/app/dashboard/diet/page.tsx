@@ -9,12 +9,12 @@ export default function DietModule() {
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Bioquímica <Apple className="text-emerald-400 w-6 h-6" />
+            Nutrición <Apple className="text-emerald-400 w-6 h-6" />
           </h1>
           <p className="text-text-secondary">Fase nutricional actual: <span className="text-white font-mono uppercase tracking-widest text-xs">Volumen Limpio</span></p>
         </div>
         <button className="h-10 px-4 rounded-xl bg-white text-background flex items-center gap-2 text-sm font-bold shadow-[0_4px_15px_rgba(255,255,255,0.2)] hover:bg-white/90 transition-colors">
-          <Plus className="w-4 h-4" /> Agregar Ingesta
+          <Plus className="w-4 h-4" /> Añadir Comida
         </button>
       </header>
 

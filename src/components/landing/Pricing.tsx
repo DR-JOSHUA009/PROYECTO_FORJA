@@ -63,7 +63,7 @@ export default function Pricing() {
               <Check className="w-5 h-5 text-white/50 shrink-0" /> Tracking Diario (Gym + Peso)
             </li>
             <li className="flex items-start gap-3 opacity-30">
-              <Check className="w-5 h-5 text-white/50 shrink-0" /> Modificaciones Biológicas IA (Bloqueado)
+              <Check className="w-5 h-5 text-white/50 shrink-0" /> Ajustes IA en Tiempo Real (Bloqueado)
             </li>
             <li className="flex items-start gap-3 opacity-30">
               <Check className="w-5 h-5 text-white/50 shrink-0" /> Macros en Tiempo Real (Bloqueado)
@@ -81,7 +81,7 @@ export default function Pricing() {
           
           <div className="mb-2 flex justify-between items-start">
             <div>
-              <h3 className="text-2xl font-bold text-white mb-2">Agente Desatado</h3>
+              <h3 className="text-2xl font-bold text-white mb-2">Plan Pro</h3>
               <p className="text-text-secondary text-sm h-10">Nivel élite. El agente recalibra tus parámetros en vivo.</p>
             </div>
             <div className="px-3 py-1 bg-white/10 text-white text-[10px] uppercase tracking-widest rounded-full font-bold">

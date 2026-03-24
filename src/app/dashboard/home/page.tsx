@@ -7,8 +7,8 @@ export default function DashboardHome() {
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
       <header className="mb-10">
-        <h1 className="text-3xl font-bold text-white mb-2">Panel Operativo</h1>
-        <p className="text-text-secondary">Estatus biológico general del Atleta Beta.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">Resumen de Hoy</h1>
+        <p className="text-text-secondary">Tu progreso y estado actual.</p>
       </header>
 
       {/* KPI WIDGETS */}
@@ -74,7 +74,7 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* BIOQUÍMICA (MACROS RADIAL) */}
+        {/* NUTRICIÓN (MACROS RADIAL) */}
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-bold text-white opacity-0 select-none">Progreso</h2>
           <div className="glass p-8 rounded-2xl border border-white/5 h-full flex flex-col items-center justify-center text-center">

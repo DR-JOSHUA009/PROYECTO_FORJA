@@ -8,10 +8,10 @@ import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
   { name: "Resumen", href: "/dashboard/home", icon: Gauge },
-  { name: "Motor Físico", href: "/dashboard/gym", icon: Dumbbell },
-  { name: "Bioquímica", href: "/dashboard/diet", icon: Apple },
+  { name: "Entrenamiento", href: "/dashboard/gym", icon: Dumbbell },
+  { name: "Nutrición", href: "/dashboard/diet", icon: Apple },
   { name: "Agente IA", href: "/dashboard/agent", icon: Cpu },
-  { name: "Protocolos", href: "/dashboard/settings", icon: Settings },
+  { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -65,7 +65,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               AT
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold">Atleta Beta</span>
+              <span className="text-sm font-bold">Usuario</span>
               <span className="text-xs text-text-muted">Nivel Óptimo</span>
             </div>
           </div>

@@ -24,7 +24,7 @@ export default function RegisterPage() {
     setError("");
 
     if (password !== confirmValue) {
-      setError("Las secuencias criptográficas no coinciden.");
+      setError("Las contraseñas no coinciden.");
       setIsLoading(false);
       return;
     }
@@ -66,7 +66,7 @@ export default function RegisterPage() {
 
       <AuthCard
         title="Inicializar Perfil"
-        subtitle="Crea tu cuenta para comenzar la ingesta de parámetros biológicos."
+        subtitle="Crea tu cuenta para armar tu plan personalizado."
         backLink="/"
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -116,7 +116,7 @@ export default function RegisterPage() {
             disabled={isLoading}
             className="w-full h-12 bg-white text-background font-bold rounded-xl mt-2 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Creando Entidad..." : "Crear Perfil"}
+            {isLoading ? "Creando cuenta..." : "Crear Perfil"}
           </button>
         </form>
 

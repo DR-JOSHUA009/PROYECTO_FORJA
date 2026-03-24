@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 
 export default function AgentChat() {
   const [messages, setMessages] = useState<{ role: "agent" | "user", content: string }[]>([
-    { role: "agent", content: "Sistema en línea. Soy tu Agente Biológico (Forja LLM). Analizando tus biométricas del día: El sueño bajó un 12% anoche y tienes entrenamiento de pierna.\n\n¿Quieres que re-estructure el volumen de sentadillas a algo más conservador (RIR 3) o re-evalúe tus macronutrientes?" }
+    { role: "agent", content: "¡Hola! Soy tu Entrenador de IA. Veo tus datos de hoy: El sueño bajó un 12% anoche y tienes entrenamiento de pierna.\n\n¿Quieres que re-estructure el volumen de sentadillas a algo más conservador (RIR 3) o re-evalúe tus macronutrientes?" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -27,7 +27,7 @@ export default function AgentChat() {
 
     // Mock response delay
     setTimeout(() => {
-      setMessages(prev => [...prev, { role: "agent", content: "Entendido. Modificando el bloque operativo:\n\n- Sentadillas: Reducido a 3x8 (RIR 3).\n- Prensa: Mantenemos intensidad pero bajamos 1 serie.\n\nHe registrado una ingesta calórica extra sugerida de 200 kcals (carbohidratos) pre-entreno para compensar la fatiga nerviosa. Tus métricas han sido actualizadas en el panel." }]);
+      setMessages(prev => [...prev, { role: "agent", content: "Entendido. Modificando tu rutina de hoy:\n\n- Sentadillas: Reducido a 3x8 (RIR 3).\n- Prensa: Mantenemos intensidad pero bajamos 1 serie.\n\nHe registrado una ingesta calórica extra sugerida de 200 kcals (carbohidratos) pre-entreno para compensar la fatiga nerviosa. Tus métricas han sido actualizadas en el panel." }]);
       setIsTyping(false);
     }, 2000);
   };
@@ -37,12 +37,12 @@ export default function AgentChat() {
       <header className="mb-6 flex justify-between items-center bg-[#050505] p-4 rounded-2xl border border-white/5 shadow-2xl z-10 sticky top-0 md:static">
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            Agente Lógico 
+            Entrenador IA 
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full uppercase tracking-widest font-mono border border-primary/20 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> Activo
             </span>
           </h1>
-          <p className="text-xs text-text-secondary mt-1 tracking-widest font-mono uppercase">Modelo: Forja-70B-Optimizado</p>
+          <p className="text-xs text-text-secondary mt-1 tracking-widest font-mono uppercase">IA Activa</p>
         </div>
         <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(9,250,211,0.6)] animate-pulse" />
       </header>

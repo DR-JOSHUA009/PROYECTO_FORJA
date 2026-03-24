@@ -9,7 +9,7 @@ export default function GymModule() {
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Motor Físico <Dumbbell className="text-primary w-6 h-6" />
+            Entrenamiento <Dumbbell className="text-primary w-6 h-6" />
           </h1>
           <p className="text-text-secondary">Bloque de hipertrofia activo: <span className="text-white font-mono uppercase tracking-widest text-xs">Día 3 - PUSH pesado</span></p>
         </div>

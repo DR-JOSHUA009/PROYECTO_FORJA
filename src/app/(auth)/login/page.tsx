@@ -46,7 +46,7 @@ export default function LoginPage() {
 
       <AuthCard
         title="Acceso al Sistema"
-        subtitle="Ingresa tus credenciales para reanudar tu planificación biológica."
+        subtitle="Inicia sesión para ver tus planes y volver al entrenamiento."
         backLink="/"
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
