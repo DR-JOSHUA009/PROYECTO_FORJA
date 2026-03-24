@@ -28,9 +28,13 @@ export default function LoginPage() {
     });
 
     if (authError) {
-      setError(authError.message === "Invalid login credentials" 
-        ? "Credenciales denegadas por el sistema." 
-        : authError.message);
+      if (authError.message === "Invalid login credentials" || authError.status === 400) {
+        setError("Contraseña o correo electrónico incorrectos. Intenta de nuevo.");
+      } else if (authError.message.includes("already registered")) { // This condition is typically for registration, but included as per instruction.
+        setError("El correo electrónico ya está registrado en el sistema.");
+      } else {
+        setError(authError.message);
+      }
       setIsLoading(false);
       return;
     }

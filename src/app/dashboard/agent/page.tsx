@@ -3,15 +3,42 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
 export default function AgentChat() {
-  const [messages, setMessages] = useState<{ role: "agent" | "user", content: string }[]>([
-    { role: "agent", content: "¡Hola! Soy tu Entrenador de IA. Veo tus datos de hoy: El sueño bajó un 12% anoche y tienes entrenamiento de pierna.\n\n¿Quieres que re-estructure el volumen de sentadillas a algo más conservador (RIR 3) o re-evalúe tus macronutrientes?" }
-  ]);
+  const [messages, setMessages] = useState<{ role: "agent" | "user", content: string }[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   
   const bottomRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadHistory() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("agent_conversations")
+        .select("role, content")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (data && data.length > 0) {
+        setMessages(data.map(m => ({
+          role: m.role === "assistant" ? "agent" : "user",
+          content: m.content
+        })));
+      } else {
+        setMessages([
+          { role: "agent", content: "¡Hola! Soy FORJA. Estoy sincronizado con tu perfil y metas. ¿En qué puedo ayudarte hoy?" }
+        ]);
+      }
+      setLoadingHistory(false);
+    }
+    loadHistory();
+  }, [supabase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

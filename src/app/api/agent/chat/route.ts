@@ -27,20 +27,28 @@ export async function POST(req: Request) {
       Eres FORJA, el Agente IA maestro de un SaaS fitness premium. Operas en español latino.
       Tienes el control absoluto de la app del usuario.
       
-      CONTEXTO DEL USUARIO:
-      - Objetivo: ${profile?.goal || "Mejorar salud"}
-      - Nivel: ${profile?.intensity || "Moderado"}
+      CONTEXTO BIOMÉTRICO (100% DISPONIBLE):
+      - Nombre/Usuario: ${profile?.full_name || profile?.username || "Usuario"}
+      - Peso: ${profile?.weight_kg || 0}kg | Altura: ${profile?.height_cm || 0}cm | Edad: ${profile?.age || 0} años
+      - Género: ${profile?.gender || "No especificado"}
+      - Objetivo Maestro: ${profile?.goal || "Mejorar salud"}
+      - Intensidad: ${profile?.intensity || "Moderado"}
+      - Equipo disponible: ${profile?.equipment || "Solo peso corporal"}
       - Lesiones: ${profile?.injuries || "Ninguna"}
+      - Enfermedades: ${profile?.diseases || "Ninguna"}
+      - Restricciones alimenticias: ${profile?.food_restrictions || "Ninguna"}
+      - Nivel de Experiencia: ${profile?.experience_level || "Principiante"}
       
-      RUTINA ACTUAL:
+      RUTINA ACTUAL (CONTROL DIRECTO):
       ${JSON.stringify(routines || [])}
       
-      DIETA ACTUAL:
+      DIETA ACTUAL (CONTROL DIRECTO):
       ${JSON.stringify(diet || [])}
 
-      Si el usuario pide que cambies su rutina o dieta, USA LAS HERRAMIENTAS (tools) disponibles para hacer el cambio real en la base de datos.
-      NO digas "te sugiero que lo cambies vayas y lo hagas", hazlo tú mismo invocando la herramienta.
-      Confírmale al usuario amigablemente qué cambiaste.
+      REGLAS CRÍTICAS:
+      1. Si el usuario pide cambiar su rutina o dieta, USA LAS TOOLS. NO le digas que lo haga él.
+      2. Si pregunta por una comida (cuántas calorías tiene, si puede comerla), usa 'analyze_food'.
+      3. Sé motivador, técnico y minimalista. Responde como un ingeniero de rendimiento humano.
     `;
 
     const groqMessages = [
@@ -125,11 +133,23 @@ export async function POST(req: Request) {
     const choice = chatCompletion.choices[0];
     const message = choice?.message;
 
+    // --- PERSISTENCIA: Guardar mensaje del usuario ---
+    const userMsg = messages[messages.length - 1]?.content;
+    if (userMsg) {
+      await supabase.from("agent_conversations").insert({
+        user_id: user.id,
+        role: "user",
+        content: userMsg
+      });
+    }
+
     // 5. Verificar si Groq decidió usar una herramienta
     if (message?.tool_calls && message.tool_calls.length > 0) {
       let responseText = "He detectado una petición de cambio.";
+      let toolUsed = "";
       
       for (const toolCall of message.tool_calls) {
+        toolUsed = toolCall.function.name;
         if (toolCall.function.name === "update_routine_day") {
           const args = JSON.parse(toolCall.function.arguments);
           // Modificar DB
@@ -142,14 +162,41 @@ export async function POST(req: Request) {
           await supabase.from("diet_plans").update({ foods: args.foods }).eq("user_id", user.id).eq("meal_type", args.meal_type);
           responseText = `✅ Hecho. He modificado tu **${args.meal_type}** con los nuevos alimentos indicados. Revisa la pestaña de Nutrición.`;
         }
+        else if (toolCall.function.name === "analyze_food") {
+          const args = JSON.parse(toolCall.function.arguments);
+          // Llamada interna a Groq para análisis rápido
+          const analysisCompletion = await groq.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: [{ role: "system", content: "Analiza nutricionalmente la comida. Sé breve. Di si es recomendable según el perfil del usuario (Objetivo: " + (profile?.goal || "Salud") + ")."}, { role: "user", content: args.food_query }],
+            temperature: 0.1
+          });
+          responseText = analysisCompletion.choices[0]?.message?.content || "No pude analizar esa comida.";
+        }
       }
       
+      // PERSISTENCIA: Guardar respuesta del agente (herramienta)
+      await supabase.from("agent_conversations").insert({
+        user_id: user.id,
+        role: "assistant",
+        content: responseText,
+        tool_used: toolUsed,
+        change_applied: true
+      });
+
       // Devolver lo que hizo la herramienta al cliente
       return NextResponse.json({ reply: responseText, act_type: "tool_called" });
     }
 
     // 6. Si no llamó a tool, devolver la respuesta de texto
     const responseText = message?.content || "No pude procesar eso. Intenta de nuevo.";
+    
+    // PERSISTENCIA: Guardar respuesta del agente (texto)
+    await supabase.from("agent_conversations").insert({
+      user_id: user.id,
+      role: "assistant",
+      content: responseText
+    });
+
     return NextResponse.json({ reply: responseText });
 
   } catch (error: any) {

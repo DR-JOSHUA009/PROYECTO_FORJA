@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 
 // Form Data Type
 interface OnboardingData {
+  nombre: string;
+  usuario: string;
   peso: string;
   altura: string;
   edad: string;
@@ -16,6 +18,7 @@ interface OnboardingData {
   equipo: string;
   dias: number;
   intensidad: string;
+  experiencia: string;
   dieta: string;
   alergias: string[];
   objetivo: string;
@@ -28,10 +31,11 @@ export default function OnboardingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [data, setData] = useState<OnboardingData>({
+    nombre: "", usuario: "",
     peso: "", altura: "", edad: "", genero: "",
     lesiones: [], enfermedades: [],
     equipo: "",
-    dias: 4, intensidad: "",
+    dias: 4, intensidad: "", experiencia: "principiante",
     dieta: "", alergias: [],
     objetivo: ""
   });
@@ -75,10 +79,10 @@ export default function OnboardingFlow() {
 
   const isStepValid = () => {
     switch (step) {
-      case 1: return data.peso && data.altura && data.edad && data.genero;
+      case 1: return data.nombre && data.usuario && data.peso && data.altura && data.edad && data.genero;
       case 2: return true; // Lesiones y enfermedades pueden estar vacías
       case 3: return data.equipo !== "";
-      case 4: return data.dias > 0 && data.intensidad !== "";
+      case 4: return data.dias > 0 && data.intensidad !== "" && data.experiencia !== "";
       case 5: return data.dieta !== "";
       case 6: return data.objetivo !== "";
       default: return false;
@@ -153,6 +157,14 @@ export default function OnboardingFlow() {
                   <h2 className="text-2xl font-bold text-white">Tu cuerpo</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-4 flex-1">
+                  <div className="flex flex-col gap-1 col-span-2">
+                    <label className="text-xs uppercase tracking-widest text-text-secondary">Nombre Completo</label>
+                    <input type="text" value={data.nombre} onChange={e => setData({...data, nombre: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Tu nombre" />
+                  </div>
+                  <div className="flex flex-col gap-1 col-span-2">
+                    <label className="text-xs uppercase tracking-widest text-text-secondary">Username (ID de Red)</label>
+                    <input type="text" value={data.usuario} onChange={e => setData({...data, usuario: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="@usuario" />
+                  </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Peso (kg)</label>
                     <input type="number" value={data.peso} onChange={e => setData({...data, peso: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Ej. 75" />
@@ -161,19 +173,17 @@ export default function OnboardingFlow() {
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Altura (cm)</label>
                     <input type="number" value={data.altura} onChange={e => setData({...data, altura: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Ej. 178" />
                   </div>
-                  <div className="flex flex-col gap-1 col-span-2">
+                  <div className="flex flex-col gap-1 col-span-1">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Edad</label>
                     <input type="number" value={data.edad} onChange={e => setData({...data, edad: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Años" />
                   </div>
-                  <div className="flex flex-col gap-1 col-span-2">
-                    <label className="text-xs uppercase tracking-widest text-text-secondary">Género Base</label>
-                    <div className="flex gap-2">
-                      {["Hombre", "Mujer", "Otro"].map(g => (
-                        <button key={g} onClick={() => setData({...data, genero: g})} className={`flex-1 h-12 rounded-xl text-sm font-medium border transition-colors ${data.genero === g ? "bg-white text-background border-white" : "glass border-white/10 text-white hover:border-white/30"}`}>
-                          {g}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex flex-col gap-1 col-span-1">
+                    <label className="text-xs uppercase tracking-widest text-text-secondary">Género</label>
+                    <select value={data.genero} onChange={e => setData({...data, genero: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors appearance-none">
+                      <option value="" disabled className="bg-[#111]">Elegir</option>
+                      <option value="Hombre" className="bg-[#111]">Hombre</option>
+                      <option value="Mujer" className="bg-[#111]">Mujer</option>
+                    </select>
                   </div>
                 </div>
               </motion.div>
@@ -265,12 +275,31 @@ export default function OnboardingFlow() {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs uppercase tracking-widest text-text-secondary">Intensidad IA</label>
+                    <label className="text-xs uppercase tracking-widest text-text-secondary">Experiencia y Nivel</label>
+                    <div className="flex gap-2">
+                      {[
+                        { val: "principiante", label: "0-1 años" },
+                        { val: "intermedio", label: "2-4 años" },
+                        { val: "avanzado", label: "5+ años" }
+                      ].map(exp => (
+                        <button 
+                          key={exp.val} 
+                          onClick={() => setData({...data, experiencia: exp.val})}
+                          className={`flex-1 h-12 rounded-xl text-[10px] font-bold border transition-all uppercase tracking-widest ${data.experiencia === exp.val ? "bg-white text-background border-white" : "glass border-white/10 text-white"}`}
+                        >
+                          {exp.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs uppercase tracking-widest text-text-secondary">Intensidad IA Objetivo</label>
                     <div className="flex flex-col gap-2">
                       {[
                         { val: "suave", label: "Conservadora", desc: "Prioridad en adaptación articular" },
-                        { val: "moderada", label: "Progresiva", desc: "Sobrecarga óptima recomendada" },
-                        { val: "intensa", label: "Agresiva", desc: "Volumen letal (Avanzados)" }
+                        { val: "moderada", label: "Progresiva", desc: "Sobrecarga óptima" },
+                        { val: "intensa", label: "Agresiva", desc: "Volumen letal" }
                       ].map(int => (
                         <button 
                           key={int.val} 
@@ -278,7 +307,7 @@ export default function OnboardingFlow() {
                           className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${data.intensidad === int.val ? "bg-white text-background border-white" : "glass border-white/10 text-white hover:border-white/30"}`}
                         >
                           <span className="font-bold">{int.label}</span>
-                          <span className={`text-xs ${data.intensidad === int.val ? "text-[rgba(0,0,0,0.6)]" : "text-text-secondary"}`}>{int.desc}</span>
+                          <span className={`text-[10px] uppercase font-mono ${data.intensidad === int.val ? "text-black/60" : "text-text-secondary"}`}>{int.desc}</span>
                         </button>
                       ))}
                     </div>

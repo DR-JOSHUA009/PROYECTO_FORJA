@@ -20,6 +20,8 @@ export async function POST(req: Request) {
       .from("users_profile")
       .upsert({
         user_id: user.id,
+        full_name: payload.nombre,
+        username: payload.usuario,
         weight_kg: parseFloat(payload.peso),
         height_cm: parseFloat(payload.altura),
         age: parseInt(payload.edad),
@@ -30,6 +32,7 @@ export async function POST(req: Request) {
         injuries: payload.lesiones.join(", "),
         diseases: payload.enfermedades.join(", "),
         intensity: payload.intensidad,
+        experience_level: payload.experiencia,
         training_days: payload.dias,
         food_restrictions: payload.alergias.join(", "),
         onboarding_completed: true

@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, Flame, UtilityPole, CheckCircle2, Dumbbell } from "lucide-react";
+import { Activity, Flame, UtilityPole, CheckCircle2, Dumbbell, GlassWater } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import WaterVessel from "@/components/dashboard/WaterVessel";
 
 export default function DashboardHome() {
   const [profile, setProfile] = useState<any>(null);
@@ -11,6 +12,8 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
   const [targetCals, setTargetCals] = useState<number>(2500);
   const [waterMl, setWaterMl] = useState<number>(0);
+  const [caloriesConsumed, setCaloriesConsumed] = useState<number>(0);
+  const [macros, setMacros] = useState({ protein: 0, carbs: 0, fats: 0 });
 
   const supabase = createClient();
 
@@ -49,6 +52,22 @@ export default function DashboardHome() {
       const totalWater = wData ? wData.reduce((acc, log) => acc + (log.amount_ml || 0), 0) : 0;
       setWaterMl(totalWater);
 
+      // Fetch Food Logs for calories and macros
+      const { data: fData } = await supabase
+        .from("food_logs")
+        .select("calories, protein, carbs, fats")
+        .eq("user_id", user.id)
+        .eq("date", new Date().toISOString().split('T')[0]);
+      
+      if (fData) {
+        setCaloriesConsumed(fData.reduce((acc, log) => acc + (log.calories || 0), 0));
+        setMacros({
+          protein: Math.round(fData.reduce((acc, log) => acc + (log.protein || 0), 0)),
+          carbs: Math.round(fData.reduce((acc, log) => acc + (log.carbs || 0), 0)),
+          fats: Math.round(fData.reduce((acc, log) => acc + (log.fats || 0), 0)),
+        });
+      }
+
       setLoading(false);
     }
     loadData();
@@ -58,13 +77,13 @@ export default function DashboardHome() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase.from("water_logs").insert({
+    const { error } = await supabase.from("water_logs").insert({
       user_id: user.id,
       amount_ml: 250,
       date: new Date().toISOString().split('T')[0]
-    }).select().single();
+    });
 
-    if (!error && data) {
+    if (!error) {
       setWaterMl(prev => prev + 250);
     }
   };
@@ -79,12 +98,13 @@ export default function DashboardHome() {
 
   const targetWater = 3500;
   const waterPercentage = Math.min((waterMl / targetWater) * 100, 100);
+  const caloriePercentage = Math.min((caloriesConsumed / targetCals) * 100, 100);
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
       <header className="mb-10">
-        <h1 className="text-3xl font-bold text-white mb-2">Resumen de Hoy</h1>
-        <p className="text-text-secondary">Tu progreso y estado actual.</p>
+        <h1 className="text-3xl font-bold text-white mb-2 font-mono tracking-tighter">SISTEMA ACTIVO</h1>
+        <p className="text-text-secondary text-sm uppercase tracking-widest font-mono">Panel de Control Bio-Sincronizado</p>
       </header>
 
       {/* KPI WIDGETS */}
@@ -109,8 +129,8 @@ export default function DashboardHome() {
                 <span className="text-sm font-medium tracking-wide">{widget.title}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-3xl font-bold text-white">{widget.value}</span>
-                <span className="text-xs text-text-muted mt-1">{widget.sub}</span>
+                <span className="text-3xl font-bold text-white tracking-widest">{widget.value}</span>
+                <span className="text-[10px] uppercase font-mono text-text-muted mt-1">{widget.sub}</span>
               </div>
             </motion.div>
           );
@@ -137,13 +157,13 @@ export default function DashboardHome() {
                   <Dumbbell className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
                   <span className="text-xs text-primary font-mono tracking-widest uppercase mb-2">Fase de Trabajo • {todayRoutine.day_of_week}</span>
                   <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%]">
-                    {todayRoutine.exercises?.length || 0} Ejercicios Programados
+                    {todayRoutine.exercises?.length || 0} Ejercicios
                   </h3>
                   <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">
                     Rutina lista. Hoy toca exigir el sistema al máximo según los parámetros calculados.
                   </p>
                   <button className="h-12 w-max px-8 rounded-xl bg-white text-background font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all text-sm relative z-10">
-                    Iniciar Bloque de Entrenamiento
+                    Iniciar Bloque
                   </button>
                 </>
               )
@@ -151,7 +171,7 @@ export default function DashboardHome() {
               <>
                 <Dumbbell className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
                 <span className="text-xs text-text-muted font-mono tracking-widest uppercase mb-2">No Programado</span>
-                <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%]">Sin Rutina Generada</h3>
+                <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%] uppercase">Pendiente</h3>
                 <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">Todavía no tienes un plan para hoy. Visita el agente de IA para crear tu bloque.</p>
               </>
             )}
@@ -161,51 +181,56 @@ export default function DashboardHome() {
 
         {/* NUTRICIÓN Y AGUA */}
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-white select-none">Progreso</h2>
-          <div className="glass p-8 rounded-2xl border border-white/5 h-full flex flex-col items-center justify-center text-center relative">
+          <h2 className="text-lg font-bold text-white select-none">Progreso Bio</h2>
+          <div className="glass p-8 rounded-2xl border border-white/5 h-full flex flex-col items-center justify-center text-center relative overflow-hidden">
             
-            <div className="relative w-48 h-48 mb-8">
-              {/* Circular Progress SVG */}
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="96" cy="96" r="88" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12" />
-                <motion.circle 
-                  cx="96" cy="96" r="88" fill="none" stroke="#fff" strokeWidth="12" 
-                  strokeDasharray="552.92" // 2 * pi * 88
-                  initial={{ strokeDashoffset: 552.92 }}
-                  animate={{ strokeDashoffset: 552.92 - (552.92 * 0.85) }} // Mock 85% full
-                  transition={{ duration: 1.5, ease: "easeOut" }}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-bold tracking-tighter text-white">{(targetCals * 0.85).toFixed(0)}</span>
-                <span className="text-[10px] text-text-secondary uppercase tracking-widest mt-1">Ingeridas</span>
+            <div className="mb-6 flex flex-col items-center">
+              <WaterVessel percentage={waterPercentage} />
+              <div className="mt-4 flex flex-col items-center">
+                <span className="text-2xl font-bold text-white">{(waterMl / 1000).toFixed(1)}L</span>
+                <span className="text-[10px] text-text-secondary uppercase tracking-widest font-mono">Hidratación</span>
               </div>
             </div>
 
-            <div className="w-full flex flex-col gap-4">
+            <div className="w-full flex flex-col gap-4 mt-6 border-t border-white/5 pt-6">
               <div className="flex justify-between text-sm">
-                <span className="text-text-secondary font-mono tracking-widest uppercase text-xs">Proteína</span>
-                <span className="text-white font-bold">180g <span className="text-text-muted font-normal">/ 200g</span></span>
+                <span className="text-text-secondary font-mono tracking-widest uppercase text-xs">Calorías</span>
+                <span className="text-white font-bold">{caloriesConsumed} <span className="text-text-muted font-normal">/ {targetCals}</span></span>
               </div>
               <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: '90%' }} className="h-full bg-white" />
+                <motion.div initial={{ width: 0 }} animate={{ width: `${caloriePercentage}%` }} className="h-full bg-white" />
+              </div>
+
+              <div className="flex justify-between text-sm mt-3">
+                <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">Proteína</span>
+                <span className="text-white font-bold">{macros.protein}g</span>
+              </div>
+              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((macros.protein/180)*100, 100)}%` }} className="h-full bg-primary" />
               </div>
 
               <div className="flex justify-between text-sm mt-2">
-                <span className="text-text-secondary font-mono tracking-widest uppercase text-xs">Agua</span>
-                <span className="text-white font-bold text-primary">{(waterMl / 1000).toFixed(1)}L <span className="text-text-muted font-normal">/ {(targetWater / 1000).toFixed(1)}L</span></span>
+                <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">Carbohidratos</span>
+                <span className="text-white font-bold">{macros.carbs}g</span>
               </div>
-              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex cursor-pointer group" onClick={handleAddWater}>
-                <motion.div initial={{ width: 0 }} animate={{ width: `${waterPercentage}%` }} className="h-full bg-primary relative">
-                  <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-l from-white/30 to-transparent" />
-                </motion.div>
-                <div className="h-full flex-1 hover:bg-white/10 transition-colors" />
+              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((macros.carbs/300)*100, 100)}%` }} className="h-full bg-orange-400" />
+              </div>
+
+              <div className="flex justify-between text-sm mt-2">
+                <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">Grasas</span>
+                <span className="text-white font-bold">{macros.fats}g</span>
+              </div>
+              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((macros.fats/80)*100, 100)}%` }} className="h-full bg-blue-400" />
               </div>
             </div>
 
-            <button onClick={handleAddWater} className="mt-6 w-full text-xs uppercase tracking-widest text-primary hover:text-white transition-colors py-2 border border-primary/20 rounded-lg hover:border-white/20 active:scale-95 transition-all">
-              + Añadir Vaso (250ml)
+            <button onClick={handleAddWater} className="mt-8 w-full group relative overflow-hidden h-12 rounded-xl border border-primary/20 bg-primary/5 text-primary font-bold hover:bg-primary/10 transition-all active:scale-95">
+              <span className="flex items-center justify-center gap-2 relative z-10">
+                <GlassWater className="w-4 h-4" />
+                +250ml
+              </span>
             </button>
           </div>
         </div>
