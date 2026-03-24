@@ -1,32 +1,52 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, Shield, Bell, CreditCard, ChevronRight } from "lucide-react";
+import { Settings, Shield, Bell, CreditCard, ChevronRight, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function SettingsModule() {
+  const [userEmail, setUserEmail] = useState<string>("Cargando...");
+  const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserEmail(user.email || "Sin email");
+    }
+    loadUser();
+  }, [supabase]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   return (
     <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
       <header className="mb-10">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
           Configuración <Settings className="text-text-muted w-6 h-6" />
         </h1>
-        <p className="text-text-secondary">Configuración del sistema y preferencias biométricas.</p>
+        <p className="text-text-secondary">Configuración del sistema y preferencias de la cuenta.</p>
       </header>
 
       <div className="flex flex-col gap-6">
         
         {/* SECTOR 1 */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
-          <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+          <div className="p-4 border-b border-white/5 bg-white/2">
             <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary" /> Cuenta
             </h2>
           </div>
           <div className="p-2 flex flex-col">
              {[
-               { name: "Correo Electrónico", val: "atletabeta@ejemplo.com" },
+               { name: "Correo Electrónico", val: userEmail },
                { name: "Contraseña", val: "••••••••••••" },
-               { name: "Autenticación Biométrica", val: "Inactiva" },
+               { name: "Autenticación", val: "Activa" },
              ].map((set, i) => (
                 <div key={i} className="flex justify-between items-center p-4 hover:bg-white/5 rounded-xl cursor-pointer transition-colors group">
                   <span className="text-sm text-text-secondary">{set.name}</span>
@@ -41,15 +61,15 @@ export default function SettingsModule() {
 
         {/* SECTOR 2 */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
-          <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+          <div className="p-4 border-b border-white/5 bg-white/2">
             <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-white" /> Suscripción
             </h2>
           </div>
           <div className="p-6 flex justify-between items-center">
              <div className="flex flex-col gap-1">
-               <span className="text-lg font-bold text-white">Suscripción Pro</span>
-               <span className="text-sm text-text-secondary">Renovación: 15 de Noviembre, 2026</span>
+               <span className="text-lg font-bold text-white">Versión Base Activa</span>
+               <span className="text-sm text-text-secondary">Acceso al Entrenador IA Forja habilitado.</span>
              </div>
              <button className="h-10 px-4 rounded-xl border border-white/20 text-white text-sm hover:bg-white hover:text-background transition-colors font-medium">
                Gestionar
@@ -57,28 +77,14 @@ export default function SettingsModule() {
           </div>
         </motion.div>
 
-        {/* SECTOR 3 */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
-          <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-            <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-              <Bell className="w-4 h-4 text-white" /> Notificaciones del Agente
-            </h2>
-          </div>
-          <div className="p-2 flex flex-col">
-             {[
-               { name: "Recordatorios de Entrenamiento", state: true },
-               { name: "Avisos de Comidas y Macros", state: true },
-               { name: "Ajustes de Rutina Autónomos", state: true },
-               { name: "Resumen Semanal de Progreso", state: false },
-             ].map((set, i) => (
-                <div key={i} className="flex justify-between items-center p-4 hover:bg-white/5 rounded-xl transition-colors">
-                  <span className="text-sm text-text-secondary">{set.name}</span>
-                  <div className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${set.state ? 'bg-primary' : 'bg-white/10'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${set.state ? 'translate-x-6' : 'translate-x-0'}`} />
-                  </div>
-                </div>
-             ))}
-          </div>
+        {/* CERRAR SESIÓN */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-4">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-white/5 text-red-400 font-bold border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/30 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.2)]"
+          >
+            <LogOut className="w-5 h-5" /> Cerrar Sesión
+          </button>
         </motion.div>
 
       </div>

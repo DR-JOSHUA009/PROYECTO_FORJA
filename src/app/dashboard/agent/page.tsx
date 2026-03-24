@@ -17,19 +17,33 @@ export default function AgentChat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    setMessages(prev => [...prev, { role: "user", content: input }]);
+    const newMessages = [...messages, { role: "user" as const, content: input }];
+    setMessages(newMessages);
     setInput("");
     setIsTyping(true);
 
-    // Mock response delay
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: "agent", content: "Entendido. Modificando tu rutina de hoy:\n\n- Sentadillas: Reducido a 3x8 (RIR 3).\n- Prensa: Mantenemos intensidad pero bajamos 1 serie.\n\nHe registrado una ingesta calórica extra sugerida de 200 kcals (carbohidratos) pre-entreno para compensar la fatiga nerviosa. Tus métricas han sido actualizadas en el panel." }]);
+    try {
+      const res = await fetch("/api/agent/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        setMessages(prev => [...prev, { role: "agent", content: data.reply }]);
+      } else {
+        setMessages(prev => [...prev, { role: "agent", content: "Error: " + (data.error || "No pude procesar la orden.") }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "agent", content: "Error de conexión con el agente." }]);
+    } finally {
       setIsTyping(false);
-    }, 2000);
+    }
   };
 
   return (
