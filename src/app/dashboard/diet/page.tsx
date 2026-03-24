@@ -21,11 +21,72 @@ export default function DietModule() {
 
       const { data: dData } = await supabase.from("diet_plans").select("*").eq("user_id", user.id);
       setDietPlans(dData || []);
+
+      // Fetch today's food logs
+      const { data: fData } = await supabase
+        .from("food_logs")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("date", new Date().toISOString().split('T')[0]);
+      
+      if (fData) {
+        setIngested({
+          cals: fData.reduce((acc, log) => acc + (log.calories || 0), 0),
+          pro: fData.reduce((acc, log) => acc + (log.protein || 0), 0),
+          carbs: fData.reduce((acc, log) => acc + (log.carbs || 0), 0),
+          fats: fData.reduce((acc, log) => acc + (log.fats || 0), 0),
+        });
+      }
       
       setLoading(false);
     }
     loadDiet();
   }, []);
+
+  const [ingested, setIngested] = useState({ cals: 0, pro: 0, carbs: 0, fats: 0 });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [foodQuery, setFoodQuery] = useState("");
+
+  const handleAddFood = async () => {
+    if (!foodQuery) return;
+    setIsAnalyzing(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    try {
+      const res = await fetch("/api/food/analyze", {
+        method: "POST",
+        body: JSON.stringify({ food: foodQuery })
+      });
+      const nutrition = await res.json();
+      
+      if (nutrition && !nutrition.error) {
+        await supabase.from("food_logs").insert({
+          user_id: user?.id,
+          food_name: nutrition.food_name,
+          calories: nutrition.calories,
+          protein: nutrition.protein,
+          carbs: nutrition.carbs,
+          fats: nutrition.fats,
+          date: new Date().toISOString().split('T')[0]
+        });
+        
+        // Refresh ingested
+        setIngested(prev => ({
+          cals: prev.cals + nutrition.calories,
+          pro: prev.pro + nutrition.protein,
+          carbs: prev.carbs + nutrition.carbs,
+          fats: prev.fats + nutrition.fats,
+        }));
+        setFoodQuery("");
+        alert(`Añadido: ${nutrition.food_name} (${nutrition.calories} kcal)`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -48,11 +109,10 @@ export default function DietModule() {
   const targetFat = Math.round(weight * 0.8);
   const targetCarbs = Math.round((targetCals - (targetPro * 4 + targetFat * 9)) / 4);
 
-  // Mock ingested values for visual UI (normally from food_logs)
-  const ingestedCals = Math.round(targetCals * 0.82); 
-  const ingestedPro = Math.round(targetPro * 0.9);
-  const ingestedCarbs = Math.round(targetCarbs * 0.83);
-  const ingestedFat = Math.round(targetFat * 0.8);
+  const ingestedCals = Math.round(ingested.cals); 
+  const ingestedPro = Math.round(ingested.pro);
+  const ingestedCarbs = Math.round(ingested.carbs);
+  const ingestedFat = Math.round(ingested.fats);
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
@@ -63,9 +123,22 @@ export default function DietModule() {
           </h1>
           <p className="text-text-secondary">Fase nutricional actual: <span className="text-white font-mono uppercase tracking-widest text-xs">{profile?.goal || "Mantenimiento"}</span></p>
         </div>
-        <button className="h-10 px-4 rounded-xl bg-white text-background flex items-center gap-2 text-sm font-bold shadow-[0_4px_15px_rgba(255,255,255,0.2)] hover:bg-white/90 transition-colors">
-          <Plus className="w-4 h-4" /> Añadir Comida
-        </button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <input 
+            type="text" 
+            placeholder="Ej: 2 huevos y un café..." 
+            value={foodQuery}
+            onChange={e => setFoodQuery(e.target.value)}
+            className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none focus:border-white transition-colors text-sm min-w-[200px]"
+          />
+          <button 
+            onClick={handleAddFood}
+            disabled={isAnalyzing || !foodQuery}
+            className="h-10 px-6 rounded-xl bg-white text-background flex items-center gap-2 text-sm font-bold shadow-[0_4px_15px_rgba(255,255,255,0.2)] hover:bg-white/90 transition-colors disabled:opacity-50"
+          >
+            {isAnalyzing ? "Analizando..." : "Añadir"}
+          </button>
+        </div>
       </header>
 
       {/* MACRO SUMMARY */}

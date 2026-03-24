@@ -59,25 +59,32 @@ export default function CardioModule() {
     if (!duration) return;
     setSaving(true);
     
-    // Generar un feedback mock de IA en lugar de llamar a Groq ahora para acortar
-    // (En la versión final, esta llamada va hacia una Action de Groq)
-    const mockFeedback = `Buen bloque de ${activity}. ${intensity > 7 ? 'La intensidad fue clave, no olvides estirar e hidratar.' : 'Excelente volumen basal para quema de grasas.'}`;
-
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("cardio_sessions").insert({
-        user_id: user.id,
-        activity,
-        duration_min: Number(duration),
-        distance_km: distance ? Number(distance) : null,
-        intensity_level: intensity,
-        ai_feedback: mockFeedback,
-        date: new Date().toISOString().split('T')[0]
+      const res = await fetch("/api/cardio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activity,
+          duration_min: Number(duration),
+          distance_km: distance ? Number(distance) : null,
+          intensity_level: intensity
+        })
       });
+      const data = await res.json();
 
-      // Recargar
-      const { data: hData } = await supabase.from("cardio_sessions").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-      setHistory(hData || []);
+      if (data.success) {
+        // Recargar
+        const { data: hData } = await supabase.from("cardio_sessions").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+        setHistory(hData || []);
+        
+        let kms = 0; let mins = 0;
+        hData?.forEach(s => {
+          kms += Number(s.distance_km || 0);
+          mins += Number(s.duration_min || 0);
+        });
+        setStats({ kms, mins, count: hData?.length || 0 });
+      }
     }
     
     setDuration(""); setDistance(""); setIntensity(5); setSaving(false);

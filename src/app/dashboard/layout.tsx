@@ -3,17 +3,16 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Gauge, Dumbbell, Apple, Cpu, Settings, LogOut, Wind, Moon, BarChart3, Medal } from "lucide-react";
+import { Gauge, Dumbbell, Apple, Cpu, Settings, LogOut, Wind, Moon, BarChart3, Medal, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
   { name: "Resumen", href: "/dashboard/home", icon: Gauge },
+  { name: "Perfil", href: "/dashboard/profile", icon: User },
   { name: "Gym", href: "/dashboard/gym", icon: Dumbbell },
   { name: "Dieta", href: "/dashboard/diet", icon: Apple },
   { name: "Cardio", href: "/dashboard/cardio", icon: Wind },
   { name: "Sueño", href: "/dashboard/sleep", icon: Moon },
-  { name: "Estadísticas", href: "/dashboard/stats", icon: BarChart3 },
-  { name: "Logros", href: "/dashboard/achievements", icon: Medal },
   { name: "Agente IA", href: "/dashboard/agent", icon: Cpu },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];

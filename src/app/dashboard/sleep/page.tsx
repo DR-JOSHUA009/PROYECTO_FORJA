@@ -58,29 +58,38 @@ export default function SleepModule() {
     
     const calculatedHours = calculateHours(sleepTime, wakeTime);
 
-    // Mock feedback
-    const feedback = calculatedHours >= 7 
-      ? `Excelente ciclo de ${calculatedHours.toFixed(1)} horas. Estás maximizando la síntesis proteica.` 
-      : `${calculatedHours.toFixed(1)} horas es subóptimo para recuperación hoy. Deberás reducir el volumen un 10%.`;
-
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("sleep_logs").insert({
-        user_id: user.id,
-        sleep_time: sleepTime,
-        wake_time: wakeTime,
-        hours_slept: calculatedHours,
-        ai_feedback: feedback,
-        date: new Date().toISOString().split('T')[0]
+      const res = await fetch("/api/sleep", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sleep_time: sleepTime,
+          wake_time: wakeTime,
+          hours_slept: calculatedHours
+        })
       });
+      const data = await res.json();
 
-      const { data: sData } = await supabase
-        .from("sleep_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("date", { ascending: false })
-        .limit(7);
-      setHistory(sData || []);
+      if (data.success) {
+        const { data: sData } = await supabase
+          .from("sleep_logs")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("date", { ascending: false })
+          .limit(7);
+        setHistory(sData || []);
+
+        if (sData) {
+          let total = 0; let streak = 0; let best = 0;
+          sData.forEach(log => {
+            total += Number(log.hours_slept || 0);
+            if (log.hours_slept >= 7) streak++;
+            if (log.hours_slept > best) best = Number(log.hours_slept);
+          });
+          setStats({ avgHours: total / sData.length, streak, bestNight: best });
+        }
+      }
     }
     
     setSaving(false);

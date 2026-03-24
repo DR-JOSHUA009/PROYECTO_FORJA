@@ -117,6 +117,20 @@ export async function POST(req: Request) {
             required: ["meal_type", "foods"]
           }
         }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "analyze_food",
+          description: "Analiza nutricionalmente una comida o alimento específico, devolviendo calorías y macros aproximados. No guarda nada en la base de datos.",
+          parameters: {
+            type: "object",
+            properties: {
+              food_query: { type: "string", description: "El nombre de la comida o alimento a analizar (ej: 2 huevos, ensalada césar)" }
+            },
+            required: ["food_query"]
+          }
+        }
       }
     ];
 
@@ -152,14 +166,22 @@ export async function POST(req: Request) {
         toolUsed = toolCall.function.name;
         if (toolCall.function.name === "update_routine_day") {
           const args = JSON.parse(toolCall.function.arguments);
-          // Modificar DB
-          await supabase.from("routines").update({ exercises: args.exercises }).eq("user_id", user.id).eq("day_of_week", args.day_of_week);
+          // Upsert en DB
+          await supabase.from("routines").upsert({ 
+            user_id: user.id, 
+            day_of_week: args.day_of_week, 
+            exercises: args.exercises 
+          }, { onConflict: 'user_id,day_of_week' });
           responseText = `✅ Entendido. He actualizado tu rutina del **${args.day_of_week}** en la base de datos con los nuevos ejercicios. El Dashboard (Gym) se ha sincronizado.`;
         } 
         else if (toolCall.function.name === "update_diet_meal") {
           const args = JSON.parse(toolCall.function.arguments);
-          // Modificar DB
-          await supabase.from("diet_plans").update({ foods: args.foods }).eq("user_id", user.id).eq("meal_type", args.meal_type);
+          // Upsert en DB
+          await supabase.from("diet_plans").upsert({ 
+            user_id: user.id, 
+            meal_type: args.meal_type, 
+            foods: args.foods 
+          }, { onConflict: 'user_id,meal_type' });
           responseText = `✅ Hecho. He modificado tu **${args.meal_type}** con los nuevos alimentos indicados. Revisa la pestaña de Nutrición.`;
         }
         else if (toolCall.function.name === "analyze_food") {
