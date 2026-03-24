@@ -1,8 +1,8 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-export async function middleware(request: NextRequest) {
-  // El middleware de Supabase manejará la actualización de cookies y protección de rutas
+export async function proxy(request: NextRequest) {
+  // El proxy de Supabase manejará la actualización de cookies y protección de rutas
   return await updateSession(request)
 }
 
