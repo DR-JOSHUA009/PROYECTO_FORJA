@@ -4,8 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
 
 export default function AgentChat() {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<{ role: "agent" | "user", content: string }[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -63,7 +66,11 @@ export default function AgentChat() {
       
       if (res.ok) {
         setMessages(prev => [...prev, { role: "agent", content: data.reply }]);
+        if (data.act_type === "tool_called") {
+          toast("FORJA ha modificado tu plan en tiempo real ⚡", "success");
+        }
       } else {
+        toast("Error al procesar la orden", "error");
         setMessages(prev => [...prev, { role: "agent", content: "Error: " + (data.error || "No pude procesar la orden.") }]);
       }
     } catch (err) {
@@ -80,12 +87,15 @@ export default function AgentChat() {
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             Entrenador IA 
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full uppercase tracking-widest font-mono border border-primary/20 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Activo
+            <Sparkles className="w-3 h-3 text-emerald-400" /> Activo
             </span>
           </h1>
-          <p className="text-xs text-text-secondary mt-1 tracking-widest font-mono uppercase">IA Activa</p>
+          <p className="text-xs text-text-secondary mt-1 tracking-widest font-mono uppercase">Master Agent v1.0</p>
         </div>
-        <div className="w-3 h-3 rounded-full bg-primary shadow-[0_0_10px_rgba(9,250,211,0.6)] animate-pulse" />
+        <div className="flex items-center gap-2">
+           <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)] animate-pulse" />
+           <span className="text-[10px] text-emerald-500/80 font-mono font-bold tracking-[0.1em]">LIVE</span>
+        </div>
       </header>
 
       {/* CHAT AREA */}
@@ -97,18 +107,18 @@ export default function AgentChat() {
             key={i} 
             className={`flex gap-4 max-w-[85%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
           >
-            <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center border shadow-xl ${
+            <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center border shadow-xl overflow-hidden glass ${
               msg.role === "agent" 
-                ? "bg-white text-background border-white" 
-                : "bg-[#0e0e0e] text-white border-white/10"
+                ? "border-white/20 bg-white/5" 
+                : "border-white/20 bg-white"
             }`}>
-              {msg.role === "agent" ? <Bot className="w-5 h-5" /> : <User className="w-5 h-5" />}
+              {msg.role === "agent" ? <Icon3D icon={Bot} size={24} color="white" /> : <User className="w-5 h-5 text-background" />}
             </div>
             
-            <div className={`p-4 rounded-2xl whitespace-pre-wrap flex flex-col justify-center text-[15px] leading-relaxed ${
+            <div className={`p-5 rounded-2xl whitespace-pre-wrap flex flex-col justify-center text-[15px] leading-relaxed tracking-wide ${
               msg.role === "agent" 
-                ? "bg-white/5 text-white border border-white/10 rounded-tl-none shadow-[0_4px_20px_rgba(0,0,0,0.5)]" 
-                : "bg-white text-background rounded-tr-none shadow-[0_4px_20px_rgba(255,255,255,0.1)] font-medium"
+                ? "bg-white/5 text-white/90 border border-white/10 rounded-tl-none shadow-[0_10px_40px_rgba(0,0,0,0.6)]" 
+                : "bg-white text-background rounded-tr-none shadow-[0_10px_40px_rgba(255,255,255,0.05)] font-medium"
             }`}>
               {msg.content}
             </div>

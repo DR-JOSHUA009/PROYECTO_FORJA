@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MoveRight, MoveLeft, Activity, HeartPulse, Dumbbell, Calendar, Apple, Target } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 
 // Form Data Type
 interface OnboardingData {
@@ -27,6 +28,7 @@ interface OnboardingData {
 
 export default function OnboardingFlow() {
   const router = useRouter();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,10 +83,11 @@ export default function OnboardingFlow() {
         body: JSON.stringify(data)
       });
       if (res.ok) {
+        toast("¡Plan Maestro compilado con éxito! Bienvenido a FORJA.", "success");
         router.push("/dashboard/home");
       } else {
         const err = await res.json();
-        alert("Error: " + (err.error || "Ocurrió un error al guardar"));
+        toast(err.error || "Ocurrió un error al guardar", "error");
         setIsSubmitting(false);
       }
     } catch (err) {

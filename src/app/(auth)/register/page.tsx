@@ -40,8 +40,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        // En un entorno de producción, activamos Email Confirmations.
-        // Aquí puedes manipularlo basándote en la configuración de la BDD.
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
       }
     });
 

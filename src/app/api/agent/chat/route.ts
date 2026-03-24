@@ -38,7 +38,12 @@ export async function POST(req: Request) {
       - Enfermedades: ${profile?.diseases || "Ninguna"}
       - Restricciones alimenticias: ${profile?.food_restrictions || "Ninguna"}
       - Nivel de Experiencia: ${profile?.experience_level || "Principiante"}
-      
+        
+      TIEMPO ACTUAL (CRÍTICO):
+      - Fecha: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      - Hora: ${new Date().toLocaleTimeString('es-ES')}
+      - Día de la semana: ${['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'][new Date().getDay()]}
+        
       RUTINA ACTUAL (CONTROL DIRECTO):
       ${JSON.stringify(routines || [])}
       
@@ -67,7 +72,7 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "update_routine_day",
-          description: "Sobrescribe los ejercicios de un día de la semana específico. Usa esto si el usuario pide cambiar, añadir o eliminar su rutina de un día.",
+          description: "Sobrescribe los ejercicios de un día de la semana específico. ÚSALO ÚNICAMENTE si el usuario PIDE EXPLÍCITAMENTE cambiar, añadir o eliminar un ejercicio. NO lo uses para responder preguntas informativas sobre sus datos.",
           parameters: {
             type: "object",
             properties: {

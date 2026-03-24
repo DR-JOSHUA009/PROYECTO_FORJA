@@ -6,8 +6,11 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import WaterVessel from "@/components/dashboard/WaterVessel";
 import { Droplet } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
 
 export default function DietModule() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [dietPlans, setDietPlans] = useState<any[]>([]);
@@ -97,9 +100,10 @@ export default function DietModule() {
           fats: prev.fats + nutrition.fats,
         }));
         setFoodQuery("");
-        alert(`Añadido: ${nutrition.food_name} (${nutrition.calories} kcal)`);
+        toast(`Añadido: ${nutrition.food_name} (${nutrition.calories} kcal)`, "success");
       }
     } catch (err) {
+      toast("Error al analizar alimento", "error");
       console.error(err);
     } finally {
       setIsAnalyzing(false);
@@ -116,14 +120,10 @@ export default function DietModule() {
       });
       if (res.ok) {
         setWaterToday(prev => prev + ml);
-        // Toast style better
-        const toast = document.createElement("div");
-        toast.className = "fixed bottom-10 right-10 glass p-4 text-white z-50 border border-white/20 animate-in fade-in slide-in-from-bottom-5 duration-300";
-        toast.innerHTML = `💧 Registrados ${ml}ml. ¡Sigue hidratándote!`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        toast(`💧 Registrados ${ml}ml. ¡Sigue así!`, "success");
       }
     } catch (err) {
+      toast("Error al registrar agua", "error");
       console.error(err);
     } finally {
       setIsAddingWater(false);
@@ -302,7 +302,7 @@ export default function DietModule() {
                        }));
                        await supabase.from("food_logs").insert(mealLogs);
                        loadDiet();
-                       alert(`¡Bien! ${meal.meal_type} registrado.`);
+                       toast(`¡Bien! ${meal.meal_type} registrado.`, "success");
                     }}
                     className="text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-primary transition-colors border border-white/5 px-3 py-1.5 rounded-lg active:scale-95"
                   >
