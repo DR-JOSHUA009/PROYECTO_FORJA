@@ -51,11 +51,12 @@ export async function POST(req: Request) {
       ${JSON.stringify(diet || [])}
 
       REGLAS CRÍTICAS:
-      1. Si el usuario pide cambiar su rutina o dieta, USA LAS TOOLS. NO le digas que lo haga él.
-      2. Si pregunta por una comida (cuántas calorías tiene, si puede comerla), usa 'analyze_food'.
-      3. Sé motivador, técnico y minimalista. Responde como un ingeniero de rendimiento humano.
-      4. Al usar 'update_profile', los valores válidos técnicos de 'goal' son: 'bulk' (volumen/ganar músculo), 'cut' (definición/perder grasa), 'maintenance' (mantenimiento). 
-      5. Al usar 'update_profile', los valores de 'experience_level' son: 'principiante', 'intermedio', 'avanzado'.
+      1. Si el usuario pide cambiar su rutina o dieta, USA LAS TOOLS INTERNAS. 
+      2. NUNCA escribas manualmente etiquetas como <tool_name> o similares. El sistema se encarga de eso.
+      3. Tu respuesta final debe ser texto plano y humano.
+      4. Si usas una herramienta, el sistema ejecutará la acción y te dará el resultado.
+      5. Al usar 'update_profile', los valores válidos técnicos de 'goal' son: 'bulk', 'cut', 'maintenance'. 
+      6. Al usar 'update_profile', los valores de 'experience_level' son: 'principiante', 'intermedio', 'avanzado'.
     `;
 
     const groqMessages = [
@@ -74,22 +75,16 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "update_routine_day",
-          description: "Sobrescribe los ejercicios de un día de la semana específico. ÚSALO ÚNICAMENTE si el usuario PIDE EXPLÍCITAMENTE cambiar, añadir o eliminar un ejercicio. NO lo uses para responder preguntas informativas sobre sus datos.",
+          description: "Actualiza la rutina de un día. Parámetros: day_of_week, exercises (array con name, sets, reps).",
           parameters: {
             type: "object",
             properties: {
-              day_of_week: { type: "string", description: "El día en minúsculas (ej: lunes, martes, miercoles)" },
+              day_of_week: { type: "string" },
               exercises: {
                 type: "array",
                 items: {
                   type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    sets: { type: "number" },
-                    reps: { type: "number" },
-                    description: { type: "string" },
-                    muscle_group: { type: "string" }
-                  },
+                  properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "number" } },
                   required: ["name", "sets", "reps"]
                 }
               }
@@ -102,21 +97,16 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "update_diet_meal",
-          description: "Sobrescribe los alimentos de un tiempo de comida específico de la dieta del usuario.",
+          description: "Actualiza una comida. Parámetros: meal_type, foods (array con name, quantity, calories).",
           parameters: {
             type: "object",
             properties: {
-              meal_type: { type: "string", description: "El tiempo de comida (ej: desayuno, almuerzo, merienda, cena)" },
+              meal_type: { type: "string" },
               foods: {
                 type: "array",
                 items: {
                   type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    quantity: { type: "number", description: "Cantidad en gramos o porciones" },
-                    calories: { type: "number" },
-                    protein_g: { type: "number" }
-                  },
+                  properties: { name: { type: "string" }, quantity: { type: "number" }, calories: { type: "number" } },
                   required: ["name", "quantity", "calories"]
                 }
               }
@@ -129,12 +119,10 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "analyze_food",
-          description: "Analiza nutricionalmente una comida o alimento específico, devolviendo calorías y macros aproximados. No guarda nada en la base de datos.",
+          description: "Analiza una comida. Parámetro: food_query.",
           parameters: {
             type: "object",
-            properties: {
-              food_query: { type: "string", description: "El nombre de la comida o alimento a analizar (ej: 2 huevos, ensalada césar)" }
-            },
+            properties: { food_query: { type: "string" } },
             required: ["food_query"]
           }
         }
@@ -143,7 +131,7 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "update_profile",
-          description: "Actualiza los datos maestros del perfil del usuario (peso, altura, objetivo, nivel).",
+          description: "Actualiza perfil. Parámetros: weight_kg, height_cm, goal, experience_level, full_name, username.",
           parameters: {
             type: "object",
             properties: {
@@ -161,12 +149,12 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "suggest_navigation",
-          description: "Muestra un botón de acceso directo a una sección específica si el usuario está perdido.",
+          description: "Sugiere ir a una sección. Parámetros: section, label.",
           parameters: {
             type: "object",
             properties: {
               section: { type: "string", enum: ["perfil", "gym", "dieta", "cardio", "sueño", "stats", "logros"] },
-              label: { type: "string", description: "Texto del botón (ej: Ir al Gimnasio)" }
+              label: { type: "string" }
             },
             required: ["section", "label"]
           }
@@ -176,13 +164,13 @@ export async function POST(req: Request) {
         type: "function" as const,
         function: {
           name: "log_activity",
-          description: "Registra una acción que el usuario YA realizó (beber agua, comer algo, dormir, hacer cardio).",
+          description: "Registra actividad diaria. Parámetros: type (water, food, cardio, sleep), value, detail.",
           parameters: {
             type: "object",
             properties: {
               type: { type: "string", enum: ["water", "food", "cardio", "sleep"] },
-              value: { type: "number", description: "Cantidad (ml para agua, kcal para comida, min para cardio, horas para sueño)" },
-              detail: { type: "string", description: "Nombre del alimento o tipo de actividad de cardio" }
+              value: { type: "number" },
+              detail: { type: "string" }
             },
             required: ["type", "value"]
           }
@@ -193,15 +181,36 @@ export async function POST(req: Request) {
     // 4. Primera llamada a Groq
     const chatCompletion = await groq.chat.completions.create({
       messages: groqMessages,
-      model: "llama-3.1-8b-instant",
-      temperature: 0.1, // Baja temperatura para tool calling
-      max_tokens: 1000,
+      model: "llama3-70b-8192", // Usar un modelo más grande para mejor tool calling
+      temperature: 0,
+      max_tokens: 1024,
       tools: tools,
       tool_choice: "auto",
     });
 
     const choice = chatCompletion.choices[0];
-    const message = choice?.message;
+    let message = choice?.message;
+
+    // --- MANUAL PARSER (FAIL-SAFE) ---
+    // Si el modelo escribió etiquetas en el texto en lugar de usar tool_calls oficial
+    if (!message?.tool_calls && message?.content?.includes("<")) {
+      const toolMatch = message.content.match(/<(\w+)>([\s\S]*?)<\/\1>/);
+      if (toolMatch) {
+        const name = toolMatch[1];
+        const argsStr = toolMatch[2];
+        try {
+          // Intentar reconstruir como tool_call oficial para el resto de la lógica
+          (message as any).tool_calls = [{
+            id: "manual_" + Date.now(),
+            type: "function",
+            function: {
+              name: name,
+              arguments: argsStr
+            }
+          }];
+        } catch (e) {}
+      }
+    }
 
     // --- PERSISTENCIA: Guardar mensaje del usuario ---
     const userMsg = messages[messages.length - 1]?.content;

@@ -65,14 +65,21 @@ function ChatContent() {
         ]);
       }
       setLoadingHistory(false);
-      
-      // Auto trigger if initial prompt exists
-      if (initialPrompt && !data?.length) {
-        setTimeout(() => executePrompt(initialPrompt), 500);
-      }
     }
     loadHistory();
-  }, [supabase, initialPrompt]);
+  }, [supabase]);
+
+  // Separate effect for initial prompt to ensure it can trigger even with history
+  useEffect(() => {
+    if (initialPrompt && !loadingHistory) {
+      const timer = setTimeout(() => {
+        executePrompt(initialPrompt);
+        // Clear prompt from URL to avoid re-triggering on refresh
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [initialPrompt, loadingHistory]);
 
   const executePrompt = async (text: string) => {
     const userMsg = { role: "user" as const, content: text };
