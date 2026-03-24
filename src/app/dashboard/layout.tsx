@@ -3,13 +3,17 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Gauge, Dumbbell, Apple, Cpu, Settings, LogOut } from "lucide-react";
+import { Gauge, Dumbbell, Apple, Cpu, Settings, LogOut, Wind, Moon, BarChart3, Medal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
   { name: "Resumen", href: "/dashboard/home", icon: Gauge },
-  { name: "Entrenamiento", href: "/dashboard/gym", icon: Dumbbell },
-  { name: "Nutrición", href: "/dashboard/diet", icon: Apple },
+  { name: "Gym", href: "/dashboard/gym", icon: Dumbbell },
+  { name: "Dieta", href: "/dashboard/diet", icon: Apple },
+  { name: "Cardio", href: "/dashboard/cardio", icon: Wind },
+  { name: "Sueño", href: "/dashboard/sleep", icon: Moon },
+  { name: "Estadísticas", href: "/dashboard/stats", icon: BarChart3 },
+  { name: "Logros", href: "/dashboard/achievements", icon: Medal },
   { name: "Agente IA", href: "/dashboard/agent", icon: Cpu },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];
@@ -29,7 +33,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row text-white">
       
       {/* SIDEBAR (Desktop) */}
-      <aside className="hidden md:flex flex-col w-64 h-screen border-r border-white/5 bg-[#050505] sticky top-0 p-6 relative z-50">
+      <aside className="hidden md:flex flex-col w-64 h-screen border-r border-white/5 bg-[#050505] sticky top-0 p-6 z-50">
         <div className="mb-12">
           <h1 className="text-2xl font-bold tracking-tighter">FORJA</h1>
           <p className="text-[10px] uppercase tracking-widest text-text-muted font-mono mt-1">
