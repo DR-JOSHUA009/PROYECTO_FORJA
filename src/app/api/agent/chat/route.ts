@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Groq from "groq-sdk";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
-
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -51,22 +49,24 @@ export async function POST(req: Request) {
       }))
     ];
 
-    // 4. Llamar a Groq
+    // Initialize Groq inside here to ensure env vars are actively read 
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
+
+    // 4. Llamar a Groq con el modelo más actual
     const chatCompletion = await groq.chat.completions.create({
       messages: groqMessages,
-      model: "llama3-8b-8192", // Modelo rápido
+      model: "llama-3.1-8b-instant", // Modelo actualizado y rápido
       temperature: 0.7,
       max_tokens: 500,
     });
 
     const responseText = chatCompletion.choices[0]?.message?.content || "No pude procesar eso. Intenta de nuevo.";
 
-    // Opcional: Podríamos guardar la conversación en la tabla "agent_conversations" aquí
-
     return NextResponse.json({ reply: responseText });
 
   } catch (error: any) {
     console.error("Agent Error:", error);
-    return NextResponse.json({ error: "Error de servidor interno." }, { status: 500 });
+    // Include the actual error message in the response trace
+    return NextResponse.json({ error: error.message || "Error interno de servidor o de red con la IA." }, { status: 500 });
   }
 }

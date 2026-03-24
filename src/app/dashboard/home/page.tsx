@@ -9,27 +9,65 @@ export default function DashboardHome() {
   const [profile, setProfile] = useState<any>(null);
   const [todayRoutine, setTodayRoutine] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [targetCals, setTargetCals] = useState<number>(2500);
+  const [waterMl, setWaterMl] = useState<number>(0);
+
+  const supabase = createClient();
 
   useEffect(() => {
     async function loadData() {
-      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: pData } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
       setProfile(pData);
 
-      // Get today's day of week in Spanish (Lunes, Martes...)
+      if (pData) {
+        // Calculate TDEE
+        const weight = pData.weight_kg || 70;
+        const intensityMult = pData.intensity === "alta" ? 1.6 : pData.intensity === "media" ? 1.4 : 1.2;
+        let cals = Math.round(weight * 22 * intensityMult);
+        if (pData.goal === "cut") cals -= 500;
+        if (pData.goal === "bulk") cals += 300;
+        setTargetCals(cals);
+      }
+
+      // Load today's routine
       const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
       const today = days[new Date().getDay()];
 
-      const { data: routineData } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
-      setTodayRoutine(routineData || null);
+      const { data: rData } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
+      setTodayRoutine(rData);
+
+      // Fetch Water Logs for today
+      const { data: wData } = await supabase
+        .from("water_logs")
+        .select("amount_ml")
+        .eq("user_id", user.id)
+        .eq("date", new Date().toISOString().split('T')[0]);
       
+      const totalWater = wData ? wData.reduce((acc, log) => acc + (log.amount_ml || 0), 0) : 0;
+      setWaterMl(totalWater);
+
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [supabase]);
+
+  const handleAddWater = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase.from("water_logs").insert({
+      user_id: user.id,
+      amount_ml: 250,
+      date: new Date().toISOString().split('T')[0]
+    }).select().single();
+
+    if (!error && data) {
+      setWaterMl(prev => prev + 250);
+    }
+  };
 
   if (loading) {
     return (
@@ -39,9 +77,8 @@ export default function DashboardHome() {
     );
   }
 
-  // Calculate estimated calories based on weight & activity
-  const baseBurn = (profile?.weight_kg || 70) * 22 * (profile?.intensity === "alta" ? 1.6 : 1.3);
-  const targetCals = Math.round(baseBurn);
+  const targetWater = 3500;
+  const waterPercentage = Math.min((waterMl / targetWater) * 100, 100);
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
@@ -80,46 +117,45 @@ export default function DashboardHome() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* RUTINA DEL DÍA */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(9,250,211,0.6)] animate-pulse" />
-            Asignación Actual ({todayRoutine?.day_of_week || "Hoy"})
-          </h2>
-          <div className="glass p-6 rounded-2xl border border-white/5 h-full">
+        <div className="md:col-span-2 flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-white select-none">Entrenamiento Programado</h2>
+          <div className="glass p-8 rounded-2xl border border-white/5 h-full flex flex-col justify-center relative overflow-hidden group">
+            
             {todayRoutine ? (
               todayRoutine.is_rest_day ? (
-                <div className="flex flex-col items-center justify-center p-10 text-center gap-2 text-text-secondary">
-                  <Activity className="w-10 h-10 text-primary opacity-50 mb-2" />
-                  <span className="font-bold text-lg text-white">Día de Descanso Activo</span>
-                  <span className="text-sm">Hoy no hay bloque programado. Enfócate en tu dieta y recuperación profunda.</span>
-                </div>
+                <>
+                  <Activity className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
+                  <span className="text-xs text-primary font-mono tracking-widest uppercase mb-2">Día de Descanso Activo</span>
+                  <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%]">Recuperación</h3>
+                  <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">Hoy el sistema indica recuperación. Enfócate en estiramientos y descanso total.</p>
+                </>
               ) : (
                 <>
-                  <div className="flex flex-col gap-4">
-                    {todayRoutine.exercises?.map((ej: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors cursor-pointer">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm text-white">{ej.name}</span>
-                          <span className="text-xs text-text-secondary mt-1 tracking-wider uppercase">{ej.sets} Series • <span className="text-primary/70 font-mono">{ej.reps} Reps</span></span>
-                        </div>
-                        <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center border-white/20"></div>
-                      </div>
-                    ))}
-                  </div>
-                  <button className="w-full mt-6 h-12 bg-white text-background font-bold rounded-xl hover:bg-white/90 transition-colors shadow-[0_4px_20px_rgba(255,255,255,0.15)]">
+                  <Dumbbell className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
+                  <span className="text-xs text-primary font-mono tracking-widest uppercase mb-2">Fase de Trabajo • {todayRoutine.day_of_week}</span>
+                  <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%]">
+                    {todayRoutine.exercises?.length || 0} Ejercicios Programados
+                  </h3>
+                  <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">
+                    Rutina lista. Hoy toca exigir el sistema al máximo según los parámetros calculados.
+                  </p>
+                  <button className="h-12 w-max px-8 rounded-xl bg-white text-background font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all text-sm relative z-10">
                     Iniciar Bloque de Entrenamiento
                   </button>
                 </>
               )
             ) : (
-                <div className="flex flex-col items-center justify-center p-10 text-center text-text-secondary">
-                  <span className="mb-2 opacity-50"><Dumbbell className="w-8 h-8"/></span>
-                  <span className="text-sm">No hay rutina asociada para este día según tu plan generado.</span>
-                </div>
+              <>
+                <Dumbbell className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
+                <span className="text-xs text-text-muted font-mono tracking-widest uppercase mb-2">No Programado</span>
+                <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%]">Sin Rutina Generada</h3>
+                <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">Todavía no tienes un plan para hoy. Visita el agente de IA para crear tu bloque.</p>
+              </>
             )}
+
           </div>
         </div>
 
@@ -158,17 +194,17 @@ export default function DashboardHome() {
 
               <div className="flex justify-between text-sm mt-2">
                 <span className="text-text-secondary font-mono tracking-widest uppercase text-xs">Agua</span>
-                <span className="text-white font-bold text-primary">2.5L <span className="text-text-muted font-normal">/ 3.5L</span></span>
+                <span className="text-white font-bold text-primary">{(waterMl / 1000).toFixed(1)}L <span className="text-text-muted font-normal">/ {(targetWater / 1000).toFixed(1)}L</span></span>
               </div>
-              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex cursor-pointer group" onClick={() => alert("Registrando vaso de agua...")}>
-                <motion.div initial={{ width: 0 }} animate={{ width: '70%' }} className="h-full bg-primary relative">
+              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex cursor-pointer group" onClick={handleAddWater}>
+                <motion.div initial={{ width: 0 }} animate={{ width: `${waterPercentage}%` }} className="h-full bg-primary relative">
                   <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-l from-white/30 to-transparent" />
                 </motion.div>
                 <div className="h-full flex-1 hover:bg-white/10 transition-colors" />
               </div>
             </div>
 
-            <button onClick={() => alert("Añadiendo Agua...")} className="mt-6 w-full text-xs uppercase tracking-widest text-primary hover:text-white transition-colors py-2 border border-primary/20 rounded-lg hover:border-white/20">
+            <button onClick={handleAddWater} className="mt-6 w-full text-xs uppercase tracking-widest text-primary hover:text-white transition-colors py-2 border border-primary/20 rounded-lg hover:border-white/20 active:scale-95 transition-all">
               + Añadir Vaso (250ml)
             </button>
           </div>
