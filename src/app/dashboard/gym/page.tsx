@@ -16,6 +16,8 @@ export default function GymModule() {
   const [currentExerciseIdx, setCurrentExerciseIdx] = useState(0);
   const [focusTimer, setFocusTimer] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
 
   const router = useRouter();
 
@@ -30,6 +32,11 @@ export default function GymModule() {
 
     const { data } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
     setTodayRoutine(data || null);
+    
+    // Fetch logs
+    const { data: logs } = await supabase.from("workout_logs").select("*").order("created_at", { ascending: false }).limit(20);
+    setHistoryLogs(logs || []);
+    
     setLoading(false);
   }
 
@@ -55,6 +62,40 @@ export default function GymModule() {
       toast("Error de conexión con el motor maestro", "error");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleFinishWorkout = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    toast("Guardando rendimiento...", "info");
+    
+    try {
+      // Insert Log
+      await supabase.from("workout_logs").insert({
+        user_id: user.id,
+        routine_name: todayRoutine?.day_of_week || "Entrenamiento",
+        exercises_completed: todayRoutine?.exercises || [],
+        duration_min: Math.floor(focusTimer / 60)
+      });
+
+      // Update XP (simple version)
+      const { data: xpData } = await supabase.from("user_xp").select("total_xp").eq("user_id", user.id).single();
+      const currentXp = xpData?.total_xp || 0;
+      await supabase.from("user_xp").upsert({ 
+        user_id: user.id, 
+        total_xp: currentXp + 350,
+        level: Math.floor((currentXp + 350) / 1000) + 1 
+      }, { onConflict: 'user_id' });
+
+      toast("¡Sesión Registrada! +350 XP", "success");
+      setFocusMode(false);
+      fetchRoutine(); // Refresh logs
+      router.push("/dashboard/home");
+    } catch (e) {
+      toast("Error al guardar el log", "error");
     }
   };
 
@@ -128,9 +169,7 @@ export default function GymModule() {
                     if (currentExerciseIdx < todayRoutine.exercises.length - 1) {
                       setCurrentExerciseIdx(prev => prev + 1);
                     } else {
-                      toast("¡Entrenamiento Finalizado! +350 XP", "success");
-                      setFocusMode(false);
-                      router.push("/dashboard/home");
+                      handleFinishWorkout();
                     }
                   }}
                   className="h-16 flex-1 max-w-xs rounded-2xl bg-white text-background font-black text-lg flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
@@ -150,6 +189,49 @@ export default function GymModule() {
                 animate={{ width: `${((currentExerciseIdx) / todayRoutine.exercises.length) * 100}%` }}
               />
             </div>
+          </motion.div>
+        )}
+
+        {showHistory && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 overflow-hidden shadow-2xl relative"
+            >
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-xl glass flex items-center justify-center border border-white/10 hover:border-white/30"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <History className="w-6 h-6 text-primary" /> Historial Reciente
+              </h3>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 scrollbar-hide">
+                {historyLogs.length === 0 ? (
+                  <div className="text-center p-10 text-white/40 italic">No hay registros de entrenamientos aún.</div>
+                ) : (
+                  historyLogs.map((log) => (
+                    <div key={log.id} className="p-5 rounded-2xl bg-white/5 border border-white/5 flex justify-between items-center group hover:border-primary/30 transition-all">
+                      <div>
+                        <p className="text-sm font-mono text-primary uppercase tracking-widest">{log.routine_name}</p>
+                        <p className="text-lg font-bold text-white mt-1">{new Date(log.created_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-text-muted mt-1">{log.exercises_completed?.length || 0} ejercicios completados</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-white">{log.duration_min || 0}</span>
+                        <span className="text-[10px] text-text-muted uppercase ml-1">min</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -178,7 +260,10 @@ export default function GymModule() {
               </>
             )}
           </button>
-          <button className="h-10 px-4 rounded-xl glass border border-white/10 hover:border-white/30 text-white flex items-center gap-2 text-sm font-medium transition-colors">
+          <button 
+            onClick={() => setShowHistory(true)}
+            className="h-10 px-4 rounded-xl glass border border-white/10 hover:border-white/30 text-white flex items-center gap-2 text-sm font-medium transition-colors"
+          >
             <History className="w-4 h-4" /> Historial
           </button>
         </div>
