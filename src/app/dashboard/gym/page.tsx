@@ -27,14 +27,24 @@ export default function GymModule() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Sincronización de seguridad
+    await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+
     const days = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
     const today = days[new Date().getDay()];
 
     const { data } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
     setTodayRoutine(data || null);
     
-    // Fetch logs
-    const { data: logs } = await supabase.from("workout_logs").select("*").order("created_at", { ascending: false }).limit(20);
+    // Fetch logs (filtered by user_id)
+    const { data: logs, error: logsError } = await supabase
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    
+    if (logsError) console.error("Error logs:", logsError);
     setHistoryLogs(logs || []);
     
     setLoading(false);
@@ -77,28 +87,33 @@ export default function GymModule() {
     
     try {
       // Insert Log
-      await supabase.from("workout_logs").insert({
+      const { error: logError } = await supabase.from("workout_logs").insert({
         user_id: user.id,
         routine_name: todayRoutine?.day_of_week || "Entrenamiento",
         exercises_completed: todayRoutine?.exercises || [],
         duration_min: Math.floor(focusTimer / 60)
       });
 
-      // Update XP (simple version)
-      const { data: xpData } = await supabase.from("user_xp").select("total_xp").eq("user_id", user.id).single();
-      const currentXp = xpData?.total_xp || 0;
-      await supabase.from("user_xp").upsert({ 
-        user_id: user.id, 
-        total_xp: currentXp + 350,
-        level: Math.floor((currentXp + 350) / 1000) + 1 
-      }, { onConflict: 'user_id' });
+      if (logError) throw logError;
+
+      // Update XP in users_profile (Master Schema)
+      const { data: pData } = await supabase.from("users_profile").select("xp, level").eq("user_id", user.id).single();
+      const currentXp = pData?.xp || 0;
+      const newXp = currentXp + 350;
+      const newLevel = Math.floor(newXp / 1000) + 1;
+
+      await supabase.from("users_profile").update({ 
+        xp: newXp,
+        level: newLevel
+      }).eq("user_id", user.id);
 
       toast("¡Sesión Registrada! +350 XP", "success");
       setFocusMode(false);
       fetchRoutine(); // Refresh logs
       router.push("/dashboard/home");
-    } catch (e) {
-      toast("Error al guardar el log", "error");
+    } catch (e: any) {
+      console.error("Finish error:", e);
+      toast("Error al guardar: " + (e.message || "desconocido"), "error");
     }
   };
 

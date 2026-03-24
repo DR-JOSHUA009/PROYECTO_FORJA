@@ -1,16 +1,18 @@
--- Tabla para registrar entrenamientos completados
-CREATE TABLE IF NOT EXISTS workout_logs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade,
+-- TABLA DEFINITIVA DE HISTORIAL DE ENTRENAMIENTOS
+-- Sincronizada con el Master Schema (public.users)
+
+CREATE TABLE IF NOT EXISTS public.workout_logs (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
   routine_name text,
-  exercises_completed jsonb default '[]'::jsonb,
-  duration_min integer,
-  calories_burned numeric,
-  date date default current_date,
-  created_at timestamptz default now()
+  exercises_completed jsonb DEFAULT '[]'::jsonb,
+  duration_min int,
+  calories_burned float DEFAULT 0,
+  date date DEFAULT current_date,
+  created_at timestamptz DEFAULT now()
 );
 
 -- RLS
-ALTER TABLE workout_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can fully manage their own logs" ON workout_logs
-  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+ALTER TABLE public.workout_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can fully manage their own logs" ON public.workout_logs;
+CREATE POLICY "Users can fully manage their own logs" ON public.workout_logs FOR ALL USING (auth.uid() = user_id);
