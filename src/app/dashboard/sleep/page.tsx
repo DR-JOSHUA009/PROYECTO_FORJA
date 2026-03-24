@@ -198,15 +198,22 @@ export default function SleepModule() {
 
                   return (
                     <div key={i} className="flex flex-col items-center flex-1 group">
-                      <div className="w-full max-w-[40px] bg-background border border-white/5 rounded-t-sm relative h-full flex items-end overflow-hidden hover:border-white/30 transition-colors">
+                      <div className="w-full max-w-[48px] bg-white/[0.02] border border-white/5 rounded-2xl relative h-full flex items-end overflow-hidden hover:border-white/30 transition-all cursor-pointer">
                         <motion.div 
                           initial={{ height: 0 }}
                           animate={{ height }}
-                          transition={{ delay: i * 0.1, type: "spring" }}
-                          className={`w-full rounded-t-sm ${isGood ? 'bg-blue-400' : 'bg-red-400/80'} shadow-[0_0_15px_rgba(96,165,250,0.1)]`}
-                        />
+                          transition={{ delay: i * 0.1, type: "spring", stiffness: 100 }}
+                          className={`w-full rounded-t-xl relative ${isGood ? 'bg-gradient-to-t from-blue-600 to-blue-400' : 'bg-gradient-to-t from-red-600 to-red-400'} shadow-[0_0_20px_rgba(37,99,235,0.2)]`}
+                        >
+                          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </motion.div>
+                        
+                        {/* Tooltip on hover */}
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-background px-2 py-1 rounded text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-10 whitespace-nowrap">
+                          {h.toFixed(1)} h
+                        </div>
                       </div>
-                      <span className="text-[10px] text-text-muted mt-2 uppercase font-mono">{d.date.substring(5, 10).replace('-', '/')}</span>
+                      <span className="text-[9px] text-text-muted mt-3 uppercase font-mono font-bold tracking-tighter">{d.date.split('-').slice(1).join('/')}</span>
                     </div>
                   );
                 }) : (

@@ -54,6 +54,8 @@ export async function POST(req: Request) {
       1. Si el usuario pide cambiar su rutina o dieta, USA LAS TOOLS. NO le digas que lo haga él.
       2. Si pregunta por una comida (cuántas calorías tiene, si puede comerla), usa 'analyze_food'.
       3. Sé motivador, técnico y minimalista. Responde como un ingeniero de rendimiento humano.
+      4. Al usar 'update_profile', los valores válidos técnicos de 'goal' son: 'bulk' (volumen/ganar músculo), 'cut' (definición/perder grasa), 'maintenance' (mantenimiento). 
+      5. Al usar 'update_profile', los valores de 'experience_level' son: 'principiante', 'intermedio', 'avanzado'.
     `;
 
     const groqMessages = [
@@ -147,8 +149,8 @@ export async function POST(req: Request) {
             properties: {
               weight_kg: { type: "number" },
               height_cm: { type: "number" },
-              goal: { type: "string", enum: ["bulk", "cut", "maintenance"] },
-              experience_level: { type: "string", enum: ["principiante", "intermedio", "avanzado"] }
+              goal: { type: "string" },
+              experience_level: { type: "string" }
             }
           }
         }
@@ -240,6 +242,23 @@ export async function POST(req: Request) {
         }
         else if (toolCall.function.name === "update_profile") {
           const args = JSON.parse(toolCall.function.arguments);
+          
+          // Mapeo inteligente de Goal
+          if (args.goal) {
+            const g = args.goal.toLowerCase();
+            if (g.includes("salud") || g.includes("mantenimiento") || g.includes("maitenance")) args.goal = "maintenance";
+            if (g.includes("grasa") || g.includes("bajar") || g.includes("defin") || g.includes("cut")) args.goal = "cut";
+            if (g.includes("musculo") || g.includes("volumen") || g.includes("ganar") || g.includes("bulk")) args.goal = "bulk";
+          }
+          
+          // Mapeo inteligente de Nivel
+          if (args.experience_level) {
+            const l = args.experience_level.toLowerCase();
+            if (l.includes("interm")) args.experience_level = "intermedio";
+            if (l.includes("avanz") || l.includes("expert")) args.experience_level = "avanzado";
+            if (l.includes("princ") || l.includes("novato")) args.experience_level = "principiante";
+          }
+
           await supabase.from("users_profile").update(args).eq("user_id", user.id);
           responseText = `✅ Perfil actualizado. He ajustado tus parámetros maestros en la base de datos conforme a lo solicitado.`;
         }
