@@ -52,7 +52,7 @@ export default function SleepModule() {
     return (w.getTime() - s.getTime()) / (1000 * 60 * 60);
   };
 
-  const handeSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     
@@ -87,7 +87,7 @@ export default function SleepModule() {
             if (log.hours_slept >= 7) streak++;
             if (log.hours_slept > best) best = Number(log.hours_slept);
           });
-          setStats({ avgHours: total / sData.length, streak, bestNight: best });
+          setStats({ avgHours: total / (sData.length || 1), streak, bestNight: best });
         }
       }
     }
@@ -123,7 +123,7 @@ export default function SleepModule() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[50px] -z-10" />
             <h2 className="text-lg font-bold text-white mb-6 uppercase tracking-widest text-xs font-mono">Registro de Hoy</h2>
             
-            <form onSubmit={handeSubmit} className="flex flex-col gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4 bg-background border border-white/5 p-4 rounded-xl">
                   <Moon className="w-5 h-5 text-blue-400" />

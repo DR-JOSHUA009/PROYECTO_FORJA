@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS public.routines (
   day_of_week text NOT NULL,
   exercises jsonb DEFAULT '[]',
   is_rest_day boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, day_of_week)
 );
 
 ALTER TABLE public.routines ENABLE ROW LEVEL SECURITY;
@@ -64,7 +65,8 @@ CREATE TABLE IF NOT EXISTS public.diet_plans (
   user_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
   meal_type text NOT NULL,
   foods jsonb DEFAULT '[]',
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, meal_type)
 );
 
 ALTER TABLE public.diet_plans ENABLE ROW LEVEL SECURITY;
@@ -141,6 +143,7 @@ CREATE TABLE IF NOT EXISTS public.food_logs (
   protein float,
   carbs float,
   fats float,
+  meal_type text, -- desayuno, almuerzo, merienda, cena
   analyzed_by_ai boolean DEFAULT false,
   date date DEFAULT current_date,
   created_at timestamptz DEFAULT now()

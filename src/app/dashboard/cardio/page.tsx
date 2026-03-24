@@ -54,7 +54,7 @@ export default function CardioModule() {
     return "Máxima";
   };
 
-  const handeSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!duration) return;
     setSaving(true);
@@ -116,7 +116,7 @@ export default function CardioModule() {
           <div className="glass p-6 rounded-2xl border border-white/5 h-full">
             <h2 className="text-lg font-bold text-white mb-6 uppercase tracking-widest text-xs font-mono">Nueva Sesión</h2>
             
-            <form onSubmit={handeSubmit} className="flex flex-col gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-text-secondary uppercase tracking-widest font-mono">Actividad</label>
                 <div className="flex flex-wrap gap-2">

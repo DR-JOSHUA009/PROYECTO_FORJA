@@ -33,13 +33,13 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase.from("users_profile").upsert({
+    const profileData: any = {
       user_id: user.id,
       full_name: profile.full_name,
       username: profile.username,
-      weight_kg: parseFloat(profile.weight_kg),
-      height_cm: parseFloat(profile.height_cm),
-      age: parseInt(profile.age),
+      weight_kg: profile.weight_kg ? parseFloat(profile.weight_kg) : null,
+      height_cm: profile.height_cm ? parseFloat(profile.height_cm) : null,
+      age: profile.age ? parseInt(profile.age) : null,
       gender: profile.gender,
       goal: profile.goal,
       intensity: profile.intensity,
@@ -48,11 +48,19 @@ export default function ProfilePage() {
       injuries: profile.injuries,
       diseases: profile.diseases,
       updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
+    };
+
+    // Si ya tenemos el ID del registro, lo incluimos para asegurar que sea un update
+    if (profile.id) profileData.id = profile.id;
+
+    const { error } = await supabase.from("users_profile").upsert(profileData, { onConflict: 'user_id' });
 
     if (!error) {
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
+    } else {
+      console.error(error);
+      alert("Error al guardar: " + error.message);
     }
     setSaving(false);
   };

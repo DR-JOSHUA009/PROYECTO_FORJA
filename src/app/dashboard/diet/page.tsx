@@ -10,36 +10,40 @@ export default function DietModule() {
   const [profile, setProfile] = useState<any>(null);
   const [dietPlans, setDietPlans] = useState<any[]>([]);
 
-  useEffect(() => {
-    async function loadDiet() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const [todayLogs, setTodayLogs] = useState<any[]>([]);
 
-      const { data: pData } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
-      setProfile(pData);
+  const loadDiet = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      const { data: dData } = await supabase.from("diet_plans").select("*").eq("user_id", user.id);
-      setDietPlans(dData || []);
+    const { data: pData } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
+    setProfile(pData);
 
-      // Fetch today's food logs
-      const { data: fData } = await supabase
-        .from("food_logs")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("date", new Date().toISOString().split('T')[0]);
-      
-      if (fData) {
-        setIngested({
-          cals: fData.reduce((acc, log) => acc + (log.calories || 0), 0),
-          pro: fData.reduce((acc, log) => acc + (log.protein || 0), 0),
-          carbs: fData.reduce((acc, log) => acc + (log.carbs || 0), 0),
-          fats: fData.reduce((acc, log) => acc + (log.fats || 0), 0),
-        });
-      }
-      
-      setLoading(false);
+    const { data: dData } = await supabase.from("diet_plans").select("*").eq("user_id", user.id);
+    setDietPlans(dData || []);
+
+    // Fetch today's food logs
+    const { data: fData } = await supabase
+      .from("food_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("date", new Date().toISOString().split('T')[0]);
+    
+    if (fData) {
+      setTodayLogs(fData);
+      setIngested({
+        cals: fData.reduce((acc, log) => acc + (log.calories || 0), 0),
+        pro: fData.reduce((acc, log) => acc + (log.protein || 0), 0),
+        carbs: fData.reduce((acc, log) => acc + (log.carbs || 0), 0),
+        fats: fData.reduce((acc, log) => acc + (log.fats || 0), 0),
+      });
     }
+    
+    setLoading(false);
+  }
+
+  useEffect(() => {
     loadDiet();
   }, []);
 
@@ -172,47 +176,98 @@ export default function DietModule() {
         </div>
       </div>
 
-      {/* RECOMENDACIONES DEL DÍA / IA PLAN */}
-      <h2 className="text-lg font-bold text-white mb-4">Plan Sugerido por IA</h2>
-      
-      <div className="glass rounded-2xl border border-white/5 overflow-hidden">
-        <div className="p-4 border-b border-white/5 bg-white/2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input type="text" placeholder="Pídele a Forja adaptar uno de los platos a tus macros restantes..." className="w-full h-10 bg-background border border-white/10 rounded-lg pl-10 pr-4 text-sm text-white outline-none focus:border-white transition-colors" />
+      {/* FOOD LOGS BY MEAL */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            Alimentos Consumidos <span className="px-2 py-0.5 bg-white/5 rounded-lg text-[10px] text-text-muted border border-white/5">HOY</span>
+          </h2>
+          <div className="flex flex-col gap-3">
+             {["Desayuno", "Almuerzo", "Merienda", "Cena"].map((mealType) => {
+               const logs = todayLogs.filter(l => l.meal_type === mealType);
+               return (
+                 <div key={mealType} className="glass p-5 rounded-2xl border border-white/5 bg-white/2 hover:border-white/10 transition-all">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-xs font-black uppercase tracking-[0.2em] text-white/40">{mealType}</span>
+                      <span className="text-xs font-bold text-white/60">{Math.round(logs.reduce((acc, l) => acc + (l.calories || 0), 0))} kcal</span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {logs.length > 0 ? logs.map((log, i) => (
+                        <div key={i} className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
+                           <span className="text-sm text-white font-medium">{log.food_name}</span>
+                           <span className="text-xs text-text-muted font-mono">{Math.round(log.calories)} kcal</span>
+                        </div>
+                      )) : (
+                        <span className="text-[10px] text-text-muted uppercase tracking-widest text-center py-2 italic">Sin registros - añade arriba</span>
+                      )}
+                    </div>
+                 </div>
+               );
+             })}
           </div>
         </div>
 
-        <div className="flex flex-col">
-          {dietPlans.length > 0 ? dietPlans.map((meal, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + (idx * 0.1) }}
-              className="flex items-start justify-between p-6 border-b border-white/5 hover:bg-white/5 transition-colors group cursor-pointer"
-            >
-              <div className="flex flex-col gap-2">
-                <div className="text-xs text-primary font-mono font-bold">{meal.meal_type}</div>
-                <div className="flex flex-col gap-1 mt-1">
-                  {meal.foods?.map((food: any, fIdx: number) => (
-                    <span key={fIdx} className="text-sm font-bold text-white flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-                      {food.name} <span className="text-text-secondary font-normal text-xs ml-1">({food.quantity})</span>
-                    </span>
-                  ))}
-                </div>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl font-bold text-white">Plan Sugerido (IA)</h2>
+          <div className="glass rounded-2xl border border-white/5 overflow-hidden flex-1 flex flex-col">
+            <div className="p-4 border-b border-white/5 bg-white/2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                <input type="text" placeholder="Buscar en base de datos maestros..." className="w-full h-10 bg-background border border-white/10 rounded-lg pl-10 pr-4 text-sm text-white outline-none focus:border-white transition-colors" />
               </div>
-              <div className="text-xs font-mono text-white/50 group-hover:text-primary transition-colors border border-white/10 px-3 py-1 rounded-full uppercase">
-                Registrar
-              </div>
-            </motion.div>
-          )) : (
-            <div className="flex flex-col items-center justify-center p-10 text-center text-text-secondary">
-              <span className="mb-2 opacity-50"><Apple className="w-8 h-8"/></span>
-              <span className="text-sm">No hay un plan generado. Haz el Onboarding o escríbele a la IA.</span>
             </div>
-          )}
+
+            <div className="flex-1 overflow-y-auto max-h-[600px] scrollbar-hide">
+              {dietPlans.length > 0 ? dietPlans.map((meal, idx) => (
+                <motion.div 
+                  key={idx}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + (idx * 0.1) }}
+                  className="flex items-start justify-between p-6 border-b border-white/5 hover:bg-white/5 transition-colors group"
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-primary font-mono font-bold">{meal.meal_type}</div>
+                    <div className="flex flex-col gap-1 mt-1">
+                      {meal.foods?.map((food: any, fIdx: number) => (
+                        <span key={fIdx} className="text-sm font-bold text-white flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                          {food.name} <span className="text-text-secondary font-normal text-xs ml-1">({food.quantity})</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                       const supabase = createClient();
+                       const { data: { user } } = await supabase.auth.getUser();
+                       const mealLogs = meal.foods.map((f: any) => ({
+                         user_id: user?.id,
+                         food_name: f.name,
+                         calories: f.calories || 0,
+                         protein: f.protein_g || 0,
+                         carbs: f.carbs_g || 0,
+                         fats: f.fat_g || 0,
+                         meal_type: meal.meal_type,
+                         date: new Date().toISOString().split('T')[0]
+                       }));
+                       await supabase.from("food_logs").insert(mealLogs);
+                       loadDiet();
+                       alert(`¡Bien! ${meal.meal_type} registrado.`);
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-primary transition-colors border border-white/5 px-3 py-1.5 rounded-lg active:scale-95"
+                  >
+                    Registrar
+                  </button>
+                </motion.div>
+              )) : (
+                <div className="flex flex-col items-center justify-center p-20 text-center text-text-secondary">
+                  <span className="mb-2 opacity-30"><Apple className="w-12 h-12"/></span>
+                  <span className="text-sm font-mono tracking-widest uppercase text-xs">Sin planificación actual</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

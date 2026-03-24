@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Activity, Flame, UtilityPole, CheckCircle2, Dumbbell, GlassWater } from "lucide-react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import WaterVessel from "@/components/dashboard/WaterVessel";
 
@@ -162,9 +163,11 @@ export default function DashboardHome() {
                   <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">
                     Rutina lista. Hoy toca exigir el sistema al máximo según los parámetros calculados.
                   </p>
-                  <button className="h-12 w-max px-8 rounded-xl bg-white text-background font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all text-sm relative z-10">
-                    Iniciar Bloque
-                  </button>
+                  <Link href="/dashboard/gym">
+                    <button className="h-12 w-max px-8 rounded-xl bg-white text-background font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all text-sm relative z-10">
+                      Iniciar Bloque
+                    </button>
+                  </Link>
                 </>
               )
             ) : (
