@@ -70,6 +70,9 @@ export default function GymModule() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Sincronización de seguridad
+    await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+
     toast("Guardando rendimiento...", "info");
     
     try {

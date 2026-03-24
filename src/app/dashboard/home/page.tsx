@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import WaterVessel from "@/components/dashboard/WaterVessel";
+import { useToast } from "@/components/ui/Toast";
 
 export default function DashboardHome() {
+  const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [todayRoutine, setTodayRoutine] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -23,8 +25,13 @@ export default function DashboardHome() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Sincronización de seguridad (por si el trigger falló)
+      await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+
       const { data: pData } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
       setProfile(pData);
+      
+      // ... rest of loadData logic ...
 
       if (pData) {
         // Calculate TDEE
@@ -78,13 +85,20 @@ export default function DashboardHome() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Aseguar que el usuario existe en public.users (por si falló el trigger)
+    await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+
     const { error } = await supabase.from("water_logs").insert({
       user_id: user.id,
       amount_ml: 250,
       date: new Date().toISOString().split('T')[0]
     });
 
-    if (!error) {
+    if (error) {
+      console.error("Error al registrar agua:", error);
+      // Podemos usar un alert simple o toast si lo tuviéramos importado
+      alert("Error al registrar agua: Revisa tu conexión o perfil.");
+    } else {
       setWaterMl(prev => prev + 250);
     }
   };

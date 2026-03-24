@@ -33,6 +33,9 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Aseguar que el usuario existe en public.users (por si falló el trigger SQL)
+    await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+
     const profileData: any = {
       user_id: user.id,
       full_name: profile.full_name,

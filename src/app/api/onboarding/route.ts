@@ -15,6 +15,9 @@ export async function POST(req: Request) {
 
     const payload = await req.json();
 
+    // 0. Asegurar que el usuario existe en public.users
+    await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+
     // 1. Guardar o actualizar perfil del usuario
     const { error: profileError } = await supabase
       .from("users_profile")
