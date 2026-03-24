@@ -181,7 +181,7 @@ export async function POST(req: Request) {
     // 4. Primera llamada a Groq
     const chatCompletion = await groq.chat.completions.create({
       messages: groqMessages,
-      model: "llama3-70b-8192", // Usar un modelo más grande para mejor tool calling
+      model: "llama-3.3-70b-versatile", // Modelo actualizado (70b para mejor tool calling)
       temperature: 0,
       max_tokens: 1024,
       tools: tools,
