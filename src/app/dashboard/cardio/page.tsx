@@ -1,11 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, Thermometer, MapPin, Search, Wind, Droplets } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
+import { Wind, Activity, Timer, Zap, Map } from "lucide-react";
 
 export default function CardioModule() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<any[]>([]);
   const [stats, setStats] = useState({ kms: 0, mins: 0, count: 0 });
@@ -84,9 +87,9 @@ export default function CardioModule() {
           mins += Number(s.duration_min || 0);
         });
         setStats({ kms, mins, count: hData?.length || 0 });
-        alert("¡Sesión de Cardio registrada! +200 XP");
+        toast("¡Sesión de Cardio registrada! +200 XP", "success");
       } else {
-        alert("Error al guardar la sesión: " + data.error);
+        toast("Error al guardar la sesión: " + data.error, "error");
       }
     }
     
@@ -106,7 +109,7 @@ export default function CardioModule() {
       <header className="mb-10 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Cardio <Wind className="text-cyan-400 w-6 h-6" />
+            Cardio <Icon3D icon={Wind} color="#22d3ee" size={32} />
           </h1>
           <p className="text-text-secondary">Registra tu resistencia aeróbica.</p>
         </div>

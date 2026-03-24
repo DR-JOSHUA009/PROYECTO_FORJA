@@ -1,59 +1,40 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BarChart3, Dumbbell, Apple, Wind, Moon, Trophy } from "lucide-react";
+import { BarChart3, TrendingUp, Calendar, Target, Award, Activity, Heart, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Icon3D } from "@/components/ui/Icon3D";
 
-export default function StatsModule() {
+export default function StatsPage() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    gym: { completed: 0, days: 0 },
-    diet: { avgCals: 0, adherence: 0 },
-    cardio: { kms: 0, mins: 0 },
-    sleep: { avgHours: 0, bestStreak: 0 }
-  });
+  const [stats, setStats] = useState<any>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    async function fetchStats() {
-      const supabase = createClient();
+    async function loadStats() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // In a real app, you would fetch these from actual completed exercises logs.
-      // We will perform basic counts from existing tables.
-      const { data: cardioObj } = await supabase.from("cardio_sessions").select("distance_km, duration_min").eq("user_id", user.id);
-      const { data: sleepObj } = await supabase.from("sleep_logs").select("hours_slept").eq("user_id", user.id);
-      const { data: profileObj } = await supabase.from("users_profile").select("weight_kg").eq("user_id", user.id).single();
-
-      let kms = 0; let mins = 0;
-      if (cardioObj) {
-        kms = cardioObj.reduce((a, b) => a + Number(b.distance_km || 0), 0);
-        mins = cardioObj.reduce((a, b) => a + Number(b.duration_min || 0), 0);
-      }
-
-      let sleepAvg = 0; let bestStreak = 0;
-      if (sleepObj && sleepObj.length > 0) {
-        let total = sleepObj.reduce((a, b) => a + Number(b.hours_slept || 0), 0);
-        sleepAvg = total / sleepObj.length;
-        let streak = 0;
-        sleepObj.forEach((s) => {
-          if (s.hours_slept >= 7) streak++;
-        });
-        bestStreak = streak; // Simplified streak
-      }
+      // Fetch consolidated stats
+      const { data: cardio } = await supabase.from("cardio_sessions").select("*").eq("user_id", user.id);
+      const { data: sleep } = await supabase.from("sleep_logs").select("*").eq("user_id", user.id);
+      const { data: food } = await supabase.from("food_logs").select("*").eq("user_id", user.id);
+      
+      const totalKms = cardio?.reduce((acc, s) => acc + Number(s.distance_km || 0), 0) || 0;
+      const totalMins = cardio?.reduce((acc, s) => acc + Number(s.duration_min || 0), 0) || 0;
+      const avgSleep = sleep?.length ? (sleep.reduce((acc, s) => acc + Number(s.hours_slept || 0), 0) / sleep.length) : 0;
+      const totalCals = food?.reduce((acc, f) => acc + Number(f.calories || 0), 0) || 0;
 
       setStats({
-        gym: { completed: profileObj ? 14 : 0, days: profileObj ? 3 : 0 }, // MOCK para demo visual
-        diet: { avgCals: profileObj ? 2300 : 0, adherence: profileObj ? 85 : 0 }, // MOCK
-        cardio: { kms, mins },
-        sleep: { avgHours: sleepAvg, bestStreak }
+        cardio: { totalKms, totalMins, count: cardio?.length || 0 },
+        sleep: { avgSleep, count: sleep?.length || 0 },
+        diet: { totalCals, count: food?.length || 0 }
       });
-
       setLoading(false);
     }
-    fetchStats();
-  }, []);
+    loadStats();
+  }, [supabase]);
 
   if (loading) {
     return (
@@ -63,81 +44,77 @@ export default function StatsModule() {
     );
   }
 
+  const sections = [
+    { title: "Gimnasio", icon: Target, color: "#ffffff", val: "85%", desc: "Adherencia a la rutina" },
+    { title: "Nutrición", icon: Heart, color: "#10b981", val: stats.diet.totalCals.toLocaleString(), desc: "Calorías totales registradas" },
+    { title: "Cardio", icon: Activity, color: "#22d3ee", val: `${stats.cardio.totalKms.toFixed(1)} km`, desc: "Distancia total recorrida" },
+    { title: "Recuperación", icon: Clock, color: "#60a5fa", val: `${stats.sleep.avgSleep.toFixed(1)}h`, desc: "Promedio de sueño diario" },
+  ];
+
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
-      <header className="mb-10 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Estadísticas <BarChart3 className="text-purple-400 w-6 h-6" />
-          </h1>
-          <p className="text-text-secondary">Visión general de tu desempeño analizado por IA.</p>
-        </div>
+      <header className="mb-10">
+        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+          Estadísticas <Icon3D icon={BarChart3} color="white" size={32} />
+        </h1>
+        <p className="text-text-secondary">Tu progreso analizado por la inteligencia de FORJA.</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {[
-          { icon: Dumbbell, color: "text-primary", title: "Fuerza", value: `${stats.gym.completed}`, sub: "Volumen levantado" },
-          { icon: Apple, color: "text-emerald-400", title: "Dieta", value: `${stats.diet.adherence}%`, sub: "Adherencia al plan" },
-          { icon: Wind, color: "text-cyan-400", title: "Cardio", value: `${stats.cardio.kms.toFixed(1)} km`, sub: "Distancia total" },
-          { icon: Moon, color: "text-blue-400", title: "Recuperación", value: `${stats.sleep.avgHours.toFixed(1)}h`, sub: "Promedio semana" },
-        ].map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-              key={i} className="glass p-6 rounded-2xl border border-white/5 relative overflow-hidden group"
-            >
-              <div className={`absolute -right-4 -top-4 w-24 h-24 ${stat.color} opacity-5 rounded-full blur-2xl group-hover:opacity-10 transition-opacity`} />
-              <div className="flex justify-between items-start mb-4">
-                <span className="text-xs uppercase font-mono tracking-widest text-text-secondary">{stat.title}</span>
-                <Icon className={`w-5 h-5 ${stat.color} opacity-80`} />
-              </div>
-              <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-              <div className="text-[10px] uppercase font-mono tracking-wide text-text-muted">{stat.sub}</div>
-            </motion.div>
-          );
-        })}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        {sections.map((sec, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="glass p-6 rounded-2xl border border-white/5 flex flex-col items-center text-center group hover:border-white/20 transition-all"
+          >
+            <Icon3D icon={sec.icon} color={sec.color} size={40} className="mb-4" />
+            <span className="text-3xl font-black text-white mb-1">{sec.val}</span>
+            <span className="text-[10px] text-text-secondary uppercase tracking-[0.2em] font-mono mb-2">{sec.title}</span>
+            <p className="text-xs text-text-muted">{sec.desc}</p>
+          </motion.div>
+        ))}
       </div>
 
+      {/* CHARTS PLACEHOLDER */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* GRÁFICO PROGRESO DE PESO (Mockeado para estructura sin Recharts) */}
-        <div className="glass p-8 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[300px]">
-          <Trophy className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5" />
-          <h2 className="text-lg font-bold text-white uppercase tracking-widest text-xs font-mono absolute top-6 left-6 z-10">Trayectoria de Peso (Próximamente)</h2>
-          
-          <div className="w-full flex-1 flex items-end justify-between px-4 z-10 opacity-70 mt-12 mb-4 h-40">
-            {[72, 71.5, 71, 71.2, 70.8, 70.0, 69.5].map((w, index) => {
-              const maxW = 75;
-              const height = `${(w / maxW) * 100}%`;
-              return (
-                <div key={index} className="flex flex-col items-center">
-                  <div className="text-[10px] text-white/50 mb-2 font-mono">{w}kg</div>
-                  <motion.div initial={{ height: 0 }} animate={{ height }} className="w-4 bg-white/20 rounded-t-sm" />
+        <div className="glass p-8 rounded-3xl border border-white/5 min-h-[400px] flex flex-col">
+          <h2 className="text-lg font-bold text-white mb-8 border-b border-white/5 pb-4">Actividad Semanal</h2>
+          <div className="flex-1 flex items-end justify-between gap-4">
+            {[40, 70, 45, 90, 65, 30, 80].map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
+                <motion.div 
+                  initial={{ height: 0 }} 
+                  animate={{ height: `${h}%` }}
+                  className="w-full bg-white/10 rounded-t-lg group-hover:bg-white transition-colors relative"
+                >
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] font-mono text-white opacity-0 group-hover:opacity-100 transition-opacity">{h}%</div>
+                </motion.div>
+                <span className="text-[10px] text-text-muted font-mono">D{i+1}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass p-8 rounded-3xl border border-white/5 min-h-[400px] flex flex-col relative overflow-hidden">
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/5 rounded-full blur-[100px]" />
+          <h2 className="text-lg font-bold text-white mb-8 border-b border-white/5 pb-4">Distribución Metabólica</h2>
+          <div className="flex-1 flex items-center justify-center p-10">
+             <div className="relative w-48 h-48 rounded-full border-[12px] border-white/5 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-[12px] border-white border-t-transparent border-r-transparent rotate-45" />
+                <div className="flex flex-col items-center">
+                  <span className="text-4xl font-black text-white">72%</span>
+                  <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono">Eficiencia</span>
                 </div>
-              );
-            })}
+             </div>
+          </div>
+          <div className="flex justify-center gap-6 mt-4">
+             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-white" /><span className="text-[10px] text-text-secondary font-mono">SUEÑO</span></div>
+             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-white/40" /><span className="text-[10px] text-text-secondary font-mono">DIETA</span></div>
+             <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-white/10" /><span className="text-[10px] text-text-secondary font-mono">GYM</span></div>
           </div>
         </div>
-
-        {/* FEEDBACK HOLÍSTICO IA */}
-        <div className="glass p-8 rounded-2xl border-l-[3px] border-l-purple-500/50 border-t-white/5 border-r-white/5 border-b-white/5 flex flex-col justify-center">
-          <h2 className="text-lg font-bold text-white uppercase tracking-widest text-xs font-mono mb-4 text-purple-400">Análisis Holístico IA</h2>
-          <p className="text-sm text-white/90 leading-relaxed font-medium mb-6">
-            Puntos fuertes detectados: Tienes una excelente racha de {stats.sleep.bestStreak} días durmiendo bien, lo que optimiza tu asimilación de hipertrofia.
-            <br /><br />
-            Área de mejora: El volumen de {stats.cardio.kms.toFixed(1)} km es un buen inicio, pero la IA sugiere añadir 50% extra de baja intensidad para acelerar oxidación oxidativa en base a tu dieta de {stats.diet.avgCals} kcal.
-          </p>
-          <div className="flex gap-4">
-             <button className="h-10 px-6 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs uppercase tracking-widest font-mono transition-colors">
-               Ver desglose muscular
-             </button>
-             <button className="h-10 px-6 border border-white/10 hover:border-white/30 text-white rounded-lg text-xs uppercase tracking-widest font-mono transition-colors">
-               Hablar con IA
-             </button>
-          </div>
-        </div>
-
       </div>
     </div>
   );

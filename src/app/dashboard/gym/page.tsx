@@ -5,8 +5,11 @@ import { Dumbbell, Plus, Timer, History, Save, Activity, X, Play, CheckCircle } 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
 
 export default function GymModule() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [todayRoutine, setTodayRoutine] = useState<any>(null);
   const [focusMode, setFocusMode] = useState(false);
@@ -101,7 +104,7 @@ export default function GymModule() {
                     if (currentExerciseIdx < todayRoutine.exercises.length - 1) {
                       setCurrentExerciseIdx(prev => prev + 1);
                     } else {
-                      alert("¡Entrenamiento Finalizado! +350 XP");
+                      toast("¡Entrenamiento Finalizado! +350 XP", "success");
                       setFocusMode(false);
                       router.push("/dashboard/home");
                     }
@@ -130,7 +133,7 @@ export default function GymModule() {
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Entrenamiento <Dumbbell className="text-primary w-6 h-6" />
+            Entrenamiento <Icon3D icon={Dumbbell} color="white" size={32} />
           </h1>
           <p className="text-text-secondary">Bloque activo: <span className="text-white font-mono uppercase tracking-widest text-xs">{todayRoutine?.day_of_week || "Hoy"}</span></p>
         </div>
@@ -211,7 +214,7 @@ export default function GymModule() {
 
             <div className="mt-8 flex justify-end">
               <button 
-                onClick={() => alert("Entrenamiento Registrado Manualmente")}
+                onClick={() => toast("Entrenamiento Registrado Manualmente", "success")}
                 className="h-14 px-8 rounded-xl border border-white/10 text-white flex items-center gap-2 text-sm font-bold hover:bg-white/5 transition-all w-full md:w-auto justify-center"
               >
                 <Save className="w-5 h-5" /> Guardar Sin Iniciar Focus

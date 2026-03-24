@@ -13,6 +13,8 @@ const NAV_ITEMS = [
   { name: "Dieta", href: "/dashboard/diet", icon: Apple },
   { name: "Cardio", href: "/dashboard/cardio", icon: Wind },
   { name: "Sueño", href: "/dashboard/sleep", icon: Moon },
+  { name: "Stats", href: "/dashboard/stats", icon: BarChart3 },
+  { name: "Logros", href: "/dashboard/achievements", icon: Medal },
   { name: "Agente IA", href: "/dashboard/agent", icon: Cpu },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings },
 ];

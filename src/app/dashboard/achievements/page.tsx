@@ -1,48 +1,40 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Shield, Sparkles, Trophy, Star, Medal, Lock, Gamepad2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Award, Trophy, Star, Shield, Zap, Target, Flame, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Icon3D } from "@/components/ui/Icon3D";
 
-const ACHIEVEMENTS_DB = [
-  { key: "perfil_creado", name: "Génesis", desc: "El origen de tu leyenda. Perfil configurado y metas calculadas.", xp: 50, icon: Star, color: "text-yellow-400" },
-  { key: "primera_semana", name: "Inquebrantable", desc: "Soporta 7 días de carga metabólica sin romper adherencia.", xp: 200, icon: Shield, color: "text-orange-500" },
-  { key: "cien_flexiones", name: "Centurión", desc: "Acumula 100 flexiones en tu bitácora de entrenamiento.", xp: 150, icon: DumbbellIcon, color: "text-zinc-200" },
-  { key: "sueno_7_dias", name: "Sueño Rem", desc: "Asimilación celular óptica: 7 noches de más de 7 horas.", xp: 200, icon: MoonIcon, color: "text-blue-400" },
-  { key: "agua_5_dias", name: "Aqua Pura", desc: "Hidratación máxima 5 días consecutivos.", xp: 150, icon: DropletIcon, color: "text-cyan-400" },
-  { key: "agente_uso", name: "Mente Maestra", desc: "Descifraste la matriz interactuando con FORJA IA.", xp: 50, icon: Sparkles, color: "text-purple-400" },
-  { key: "nivel_5", name: "Super Humano", desc: "Alcanza el nivel 5 de maestría. Eres el 5% superior.", xp: 300, icon: Trophy, color: "text-yellow-300" }
-];
-
-function DropletIcon(props: any) { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>; }
-function MoonIcon(props: any) { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>; }
-function DumbbellIcon(props: any) { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.4 14.4l-4.8-4.8m-2.4-2.4l4.8 4.8m-7.2-2.4l7.2 7.2m-7.2-7.2l-2.4 2.4a2.83 2.83 0 1 0 4 4l2.4-2.4m4.8-4.8l2.4-2.4a2.83 2.83 0 1 0-4-4l-2.4 2.4"/></svg>; }
-
-export default function AchievementsModule() {
+export default function AchievementsPage() {
   const [loading, setLoading] = useState(true);
-  const [unlocked, setUnlocked] = useState<any[]>([]);
-  const [userXp, setUserXp] = useState({ total_xp: 0, level: 1 });
+  const [userXP, setUserXP] = useState<any>(null);
+  const [unlocked, setUnlocked] = useState<string[]>([]);
+  const supabase = createClient();
+
+  const achievementsArr = [
+    { key: "perfil_creado", name: "Origen de Forja", desc: "Has completado tu perfil maestro.", xp: 50, icon: Target, color: "#ffffff" },
+    { key: "primera_semana", name: "Atleta Iniciado", desc: "Primera semana completa en el SaaS.", xp: 200, icon: Flame, color: "#f97316" },
+    { key: "primer_mes", name: "Constancia de Hierro", desc: "Un mes de entrenamiento diario.", xp: 500, icon: Shield, color: "#ffffff" },
+    { key: "sueno_7_dias", name: "Recuperación Maestra", desc: "7 días con sueño óptimo.", xp: 200, icon: Zap, color: "#60a5fa" },
+    { key: "agua_5_dias", name: "Hidratación Elite", desc: "Meta de agua cumplida por 5 días.", xp: 150, icon: Star, color: "#22d3ee" },
+    { key: "rutina_modificada_ia", name: "Control Maestro", desc: "Has modificado tu plan con IA.", xp: 100, icon: Award, color: "#10b981" },
+  ];
 
   useEffect(() => {
-    async function fetchAchievements() {
-      const supabase = createClient();
+    async function loadData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: xpData } = await supabase.from("user_xp").select("*").eq("user_id", user.id).single();
-      const { data: achData } = await supabase.from("achievements").select("*").eq("user_id", user.id);
+      const { data: achData } = await supabase.from("achievements").select("achievement_key").eq("user_id", user.id);
 
-      // Si no existe XP data, insertamos el primero nivel 1 con 0 XP (se asume que onboarding lo hace, pero por robustez visual en el demo)
-      setUserXp(xpData || { total_xp: Math.floor(Math.random() * 800), level: 2 });
-      
-      // Mapear qué llaves están desbloqueadas
-      const keys = achData ? achData.map(a => a.achievement_key) : [];
-      setUnlocked(keys);
+      setUserXP(xpData || { total_xp: 0, level: 1 });
+      setUnlocked(achData?.map(a => a.achievement_key) || ["perfil_creado"]); // Mocked for now if empty
       setLoading(false);
     }
-    fetchAchievements();
-  }, []);
+    loadData();
+  }, [supabase]);
 
   if (loading) {
     return (
@@ -52,65 +44,68 @@ export default function AchievementsModule() {
     );
   }
 
-  // Lógica XP Niveles mock: Nivel 1=0, 2=200, 3=500, 4=1000
-  const lvlThresholds = [0, 200, 500, 1000, 2000, 3500, 5500];
-  const nextLvlXp = lvlThresholds[userXp.level] || lvlThresholds[lvlThresholds.length - 1];
-  const currentLvlBaseXp = lvlThresholds[userXp.level - 1] || 0;
-  
-  const xpNeeded = nextLvlXp - currentLvlBaseXp;
-  const xpGained = userXp.total_xp - currentLvlBaseXp;
-  const progressPct = Math.min((xpGained / xpNeeded) * 100, 100);
+  const currentLevel = userXP?.level || 1;
+  const currentXP = userXP?.total_xp || 0;
+  const nextLevelXP = currentLevel * 1000;
+  const progressPercent = (currentXP % 1000) / 10;
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
-      <header className="mb-10 flex flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-3">
-          Logros <Gamepad2 className="text-yellow-400 w-6 h-6" />
-        </h1>
-        <p className="text-text-secondary">Tu sendero de progresión y experiencia acumulada.</p>
+      <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            Logros <Icon3D icon={Trophy} color="white" size={32} />
+          </h1>
+          <p className="text-text-secondary">Tu evolución registrada para la eternidad.</p>
+        </div>
         
-        {/* PROGRESS BAR HEADER */}
-        <div className="w-full max-w-2xl mt-10 glass p-8 rounded-2xl border-t border-t-white/10 relative overflow-hidden flex flex-col items-center border-[rgba(255,255,255,0.05)] text-center">
-           <Medal className="w-16 h-16 text-primary mb-4" />
-           <span className="text-lg font-bold text-white uppercase tracking-widest font-mono">Nivel {userXp.level}</span>
-           <span className="text-sm text-text-muted mt-1 font-medium">{userXp.total_xp} XP Total</span>
-           
-           <div className="w-full h-2 bg-background border border-white/5 rounded-full mt-6 mb-2 overflow-hidden relative">
-             <motion.div initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ type: "spring", damping: 20 }} className="h-full bg-primary" />
+        <div className="glass p-6 rounded-3xl border border-white/5 bg-white/2 min-w-[300px] flex flex-col gap-4 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full blur-3xl -z-10" />
+           <div className="flex justify-between items-end">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-mono leading-none mb-1">NIVEL ACTUAL</span>
+                <span className="text-4xl font-black text-white italic">LVL {currentLevel}</span>
+              </div>
+              <span className="text-xs text-text-secondary font-mono font-bold">{currentXP} XP TOTAL</span>
            </div>
            
-           <div className="w-full flex justify-between text-[10px] uppercase font-mono tracking-widest text-text-secondary">
-             <span>Nivel {userXp.level}</span>
-             <span>Faltan {nextLvlXp - userXp.total_xp} XP para Nivel {userXp.level + 1}</span>
-             <span>Nivel {userXp.level + 1}</span>
+           <div className="flex flex-col gap-2">
+             <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5 p-[1.5px]">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} className="h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
+             </div>
+             <div className="flex justify-between items-center text-[10px] font-mono text-text-muted tracking-widest uppercase">
+                <span>0 XP</span>
+                <span>{nextLevelXP} XP PARA EL SIGUIENTE</span>
+             </div>
            </div>
         </div>
       </header>
 
-      {/* GRID DE LOGROS */}
-      <h2 className="text-lg font-bold text-white mb-6 uppercase tracking-widest text-xs font-mono ml-2 text-center md:text-left">Insignias de Honor</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {ACHIEVEMENTS_DB.map((ach, i) => {
+        {achievementsArr.map((ach, i) => {
           const isUnlocked = unlocked.includes(ach.key);
-          const Icon = ach.icon;
-
-          // Mock un par para que se vea cómo queda
-          const demoUnlocked = isUnlocked || (i === 0 || i === 5);
-
           return (
             <motion.div 
-              key={ach.key}
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
-              className={`glass p-6 rounded-2xl border flex items-start gap-4 transition-all duration-300 ${demoUnlocked ? 'border-white/10 hover:border-white/30 hover:shadow-[0_4px_30px_rgba(255,255,255,0.05)]' : 'border-white/5 opacity-40 grayscale blur-[1px]'}`}
+               initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
+               key={ach.key} 
+               className={`glass p-8 rounded-3xl border flex flex-col items-center text-center transition-all ${isUnlocked ? 'border-white/10 bg-white/2 hover:border-white/20' : 'border-white/5 grayscale opacity-40 bg-transparent'}`}
             >
-              <div className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border shadow-xl ${demoUnlocked ? 'border-white/10 bg-white/5' : 'border-white/5 bg-background'}`}>
-                {demoUnlocked ? <Icon className={`w-7 h-7 ${ach.color} drop-shadow-[0_0_10px_currentColor]`} /> : <Lock className="w-5 h-5 text-zinc-500" />}
+              <div className="relative mb-6">
+                 {isUnlocked ? (
+                   <Icon3D icon={ach.icon} color={ach.color} size={64} className="hover:scale-110 transition-transform" />
+                 ) : (
+                   <div className="w-[64px] h-[64px] flex items-center justify-center bg-white/5 rounded-full border border-white/5">
+                      <Lock className="w-8 h-8 text-white/20" />
+                   </div>
+                 )}
+                 {isUnlocked && <div className="absolute -inset-4 bg-white/5 rounded-full blur-2xl -z-10" />}
               </div>
               
-              <div className="flex flex-col flex-1">
-                <span className={`text-xs font-mono tracking-widest font-bold uppercase mb-1 ${demoUnlocked ? ach.color : 'text-zinc-500'}`}>{demoUnlocked ? <>{ach.xp} XP</> : 'Bloqueado'}</span>
-                <span className="text-white font-bold leading-tight mb-1 text-[15px]">{ach.name}</span>
-                <span className="text-xs text-text-secondary leading-relaxed font-medium">{ach.desc}</span>
+              <h3 className="text-lg font-bold text-white mb-2 leading-tight">{ach.name}</h3>
+              <p className="text-xs text-text-secondary leading-relaxed mb-6">{ach.desc}</p>
+              
+              <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${isUnlocked ? 'border-primary/20 bg-primary/5 text-primary' : 'border-white/5 text-white/20'}`}>
+                 {ach.xp} XP {isUnlocked ? "GANADO" : "PENDIENTE"}
               </div>
             </motion.div>
           );

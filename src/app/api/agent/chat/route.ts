@@ -136,6 +136,38 @@ export async function POST(req: Request) {
             required: ["food_query"]
           }
         }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "update_profile",
+          description: "Actualiza los datos maestros del perfil del usuario (peso, altura, objetivo, nivel).",
+          parameters: {
+            type: "object",
+            properties: {
+              weight_kg: { type: "number" },
+              height_cm: { type: "number" },
+              goal: { type: "string", enum: ["bulk", "cut", "maintenance"] },
+              experience_level: { type: "string", enum: ["principiante", "intermedio", "avanzado"] }
+            }
+          }
+        }
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "log_activity",
+          description: "Registra una acción que el usuario YA realizó (beber agua, comer algo, dormir, hacer cardio).",
+          parameters: {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["water", "food", "cardio", "sleep"] },
+              value: { type: "number", description: "Cantidad (ml para agua, kcal para comida, min para cardio, horas para sueño)" },
+              detail: { type: "string", description: "Nombre del alimento o tipo de actividad de cardio" }
+            },
+            required: ["type", "value"]
+          }
+        }
       }
     ];
 
@@ -171,11 +203,18 @@ export async function POST(req: Request) {
         toolUsed = toolCall.function.name;
         if (toolCall.function.name === "update_routine_day") {
           const args = JSON.parse(toolCall.function.arguments);
+          // Robust Exercises Parsing
+          const exercises = args.exercises.map((ex: any) => ({
+            ...ex,
+            sets: Number(ex.sets) || 0,
+            reps: Number(ex.reps) || 0
+          }));
+
           // Upsert en DB
           await supabase.from("routines").upsert({ 
             user_id: user.id, 
             day_of_week: args.day_of_week, 
-            exercises: args.exercises 
+            exercises: exercises 
           }, { onConflict: 'user_id,day_of_week' });
           responseText = `✅ Entendido. He actualizado tu rutina del **${args.day_of_week}** en la base de datos con los nuevos ejercicios. El Dashboard (Gym) se ha sincronizado.`;
         } 
@@ -198,6 +237,30 @@ export async function POST(req: Request) {
             temperature: 0.1
           });
           responseText = analysisCompletion.choices[0]?.message?.content || "No pude analizar esa comida.";
+        }
+        else if (toolCall.function.name === "update_profile") {
+          const args = JSON.parse(toolCall.function.arguments);
+          await supabase.from("users_profile").update(args).eq("user_id", user.id);
+          responseText = `✅ Perfil actualizado. He ajustado tus parámetros maestros en la base de datos conforme a lo solicitado.`;
+        }
+        else if (toolCall.function.name === "log_activity") {
+          const args = JSON.parse(toolCall.function.arguments);
+          const { type, value, detail } = args;
+          const today = new Date().toISOString().split('T')[0];
+
+          if (type === "water") {
+            await supabase.from("water_logs").insert({ user_id: user.id, amount_ml: value, date: today });
+            responseText = `💧 Registrado. He añadido **${value}ml** de agua a tu seguimiento de hoy.`;
+          } else if (type === "food") {
+            await supabase.from("food_logs").insert({ user_id: user.id, food_name: detail || "Alimento IA", calories: value, date: today });
+            responseText = `🍎 Registrado. He añadido **${detail}** (aprox ${value} kcal) a tu ingesta de hoy.`;
+          } else if (type === "cardio") {
+            await supabase.from("cardio_sessions").insert({ user_id: user.id, activity: detail || "Cardio IA", duration_min: value });
+            responseText = `🏃 Hecho. He guardado tu sesión de cardio de **${value} min** (${detail}).`;
+          } else if (type === "sleep") {
+            await supabase.from("sleep_logs").insert({ user_id: user.id, hours_slept: value, date: today });
+            responseText = `🌙 Recibido. He registrado **${value} horas** de sueño para tu recuperación.`;
+          }
         }
       }
       

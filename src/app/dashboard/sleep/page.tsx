@@ -1,11 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
 import { Moon, Sunrise, Clock, Zap, Star } from "lucide-react";
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export default function SleepModule() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<any[]>([]);
   const [stats, setStats] = useState({ avgHours: 0, streak: 0, bestNight: 0 });
@@ -89,9 +92,9 @@ export default function SleepModule() {
           });
           setStats({ avgHours: total / (sData.length || 1), streak, bestNight: best });
         }
-        alert("¡Registro de sueño guardado! +150 XP");
+        toast("¡Registro de sueño guardado! +150 XP", "success");
       } else {
-        alert("Error al guardar: " + data.error);
+        toast("Error al guardar: " + data.error, "error");
       }
     }
     
@@ -113,7 +116,7 @@ export default function SleepModule() {
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
       <header className="mb-10">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-          Recuperación <Moon className="text-blue-400 w-6 h-6" />
+          Recuperación <Icon3D icon={Moon} color="#60a5fa" size={32} />
         </h1>
         <p className="text-text-secondary">Monitorea la base de tu crecimiento muscular.</p>
       </header>
