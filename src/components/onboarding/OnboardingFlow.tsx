@@ -74,7 +74,7 @@ export default function OnboardingFlow() {
     }
   };
 
-  const variants = {
+  const variants: any = {
     enter: (direction: number) => ({
       x: direction > 0 ? 100 : -100,
       opacity: 0,
@@ -90,7 +90,7 @@ export default function OnboardingFlow() {
       x: direction < 0 ? 100 : -100,
       opacity: 0,
       scale: 0.95,
-      transition: { duration: 0.3 }
+      transition: { duration: 0.3, ease: "easeIn" }
     })
   };
 
