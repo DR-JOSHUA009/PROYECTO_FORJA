@@ -34,17 +34,22 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
+  // --- 0. Rutas que NO requieren sesión ni validación de onboarding ---
+  const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/auth/callback'];
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
+    // Si tiene sesión activa, mandamos a dashboard solo si intenta entrar a login/register
+    if (user && (pathname === '/login' || pathname === '/register' || pathname === '/forgot-password')) {
+      return NextResponse.redirect(new URL('/dashboard/home', request.url))
+    }
+    return response
+  }
+
   // --- 1. Sin sesión: bloquear dashboard y onboarding ---
   if (!user) {
     if (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding')) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
     return response
-  }
-
-  // --- 2. Con sesión: redirigir fuera de login/register ---
-  if (pathname === '/login' || pathname === '/register') {
-    return NextResponse.redirect(new URL('/dashboard/home', request.url))
   }
 
   // --- 3. Con sesión: verificar si completó onboarding ---

@@ -1,22 +1,27 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, Scale, Ruler, Target, Dumbbell, AlertTriangle, Save, CheckCircle2 } from "lucide-react";
+import { User, Scale, Ruler, Target, Dumbbell, AlertTriangle, Save, CheckCircle2, LogOut, Mail, Calendar, Zap, Trophy, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<any>(null);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
+  const [email, setEmail] = useState("");
+  const { toast } = useToast();
+  const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     async function loadProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setEmail(user.email || "");
 
       const { data } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
       setProfile(data || {});
@@ -28,12 +33,10 @@ export default function ProfilePage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSavedSuccess(false);
-    
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Aseguar que el usuario existe en public.users (por si falló el trigger SQL)
     await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
 
     const profileData: any = {
@@ -48,24 +51,28 @@ export default function ProfilePage() {
       intensity: profile.intensity,
       equipment: profile.equipment,
       experience_level: profile.experience_level,
+      training_days: profile.training_days ? parseInt(profile.training_days) : null,
       injuries: profile.injuries,
       diseases: profile.diseases,
+      diet_type: profile.diet_type,
       updated_at: new Date().toISOString()
     };
 
-    // Si ya tenemos el ID del registro, lo incluimos para asegurar que sea un update
     if (profile.id) profileData.id = profile.id;
 
     const { error } = await supabase.from("users_profile").upsert(profileData, { onConflict: 'user_id' });
 
     if (!error) {
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      toast("✅ Perfil actualizado correctamente", "success");
     } else {
-      console.error(error);
-      alert("Error al guardar: " + error.message);
+      toast("Error al guardar: " + error.message, "error");
     }
     setSaving(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
   };
 
   if (loading) {
@@ -76,21 +83,52 @@ export default function ProfilePage() {
     );
   }
 
+  const currentLevel = profile?.level || 1;
+  const currentXp = profile?.xp || 0;
+
   return (
     <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
-      <header className="mb-10 flex justify-between items-center">
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Perfil Biométrico <User className="text-primary w-6 h-6" />
+            Perfil <Icon3D icon={User} color="white" size={32} />
           </h1>
           <p className="text-text-secondary">Tus datos maestros sincronizados con la IA.</p>
         </div>
-        {savedSuccess && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-4 py-2 rounded-xl border border-emerald-400/20 text-sm font-bold">
-            <CheckCircle2 className="w-4 h-4" /> Guardado
-          </motion.div>
-        )}
+        
+        {/* NIVEL + XP BADGE */}
+        <div className="flex items-center gap-4">
+          <div className="glass px-5 py-3 rounded-2xl border border-white/5 flex items-center gap-4">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono">LVL</span>
+              <span className="text-2xl font-black text-white">{currentLevel}</span>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono">XP</span>
+              <span className="text-2xl font-black text-primary">{currentXp}</span>
+            </div>
+          </div>
+        </div>
       </header>
+
+      {/* EMAIL + CUENTA (solo lectura) */}
+      <div className="glass p-6 rounded-2xl border border-white/5 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Mail className="w-4 h-4 text-text-muted" />
+          <div>
+            <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono block">Email vinculado</span>
+            <span className="text-white font-mono text-sm">{email}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Shield className="w-4 h-4 text-emerald-400" />
+          <div>
+            <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono block">Estado</span>
+            <span className="text-emerald-400 text-sm font-bold">Verificado</span>
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
@@ -123,27 +161,37 @@ export default function ProfilePage() {
         <div className="glass p-6 rounded-2xl border border-white/5 flex flex-col gap-6">
           <h2 className="text-sm font-bold text-white uppercase tracking-widest border-b border-white/5 pb-4">Métricas Físicas</h2>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-2">
-                <Scale className="w-3 h-3" /> Peso (kg)
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Scale className="w-3 h-3" /> Peso
               </label>
               <input 
-                type="number" 
-                step="0.1"
+                type="number" step="0.1"
                 value={profile.weight_kg || ""} 
                 onChange={e => setProfile({...profile, weight_kg: e.target.value})}
                 className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none font-mono" 
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-2">
-                <Ruler className="w-3 h-3" /> Altura (cm)
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Ruler className="w-3 h-3" /> Altura
               </label>
               <input 
                 type="number" 
                 value={profile.height_cm || ""} 
                 onChange={e => setProfile({...profile, height_cm: e.target.value})}
+                className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none font-mono" 
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Edad
+              </label>
+              <input 
+                type="number" 
+                value={profile.age || ""} 
+                onChange={e => setProfile({...profile, age: e.target.value})}
                 className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none font-mono" 
               />
             </div>
@@ -163,27 +211,71 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* OBJETIVOS Y EQUIPO */}
+        {/* ESTRATEGIA */}
         <div className="glass p-6 rounded-2xl border border-white/5 flex flex-col gap-6">
           <h2 className="text-sm font-bold text-white uppercase tracking-widest border-b border-white/5 pb-4">Estrategia</h2>
           
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-2">
-              <Target className="w-3 h-3" /> Objetivo
-            </label>
-            <select 
-              value={profile.goal || ""} 
-              onChange={e => setProfile({...profile, goal: e.target.value})}
-              className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none cursor-pointer appearance-none"
-            >
-              <option value="cut">Definición (Perder Grasa)</option>
-              <option value="bulk">Volumen (Ganar Músculo)</option>
-              <option value="maintain">Mantenimiento</option>
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Target className="w-3 h-3" /> Objetivo
+              </label>
+              <select 
+                value={profile.goal || ""} 
+                onChange={e => setProfile({...profile, goal: e.target.value})}
+                className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none cursor-pointer appearance-none"
+              >
+                <option value="cut">Definición</option>
+                <option value="bulk">Volumen</option>
+                <option value="maintain">Mantener</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Intensidad
+              </label>
+              <select 
+                value={profile.intensity || ""} 
+                onChange={e => setProfile({...profile, intensity: e.target.value})}
+                className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none cursor-pointer appearance-none"
+              >
+                <option value="baja">Baja</option>
+                <option value="media">Media</option>
+                <option value="alta">Alta</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Días/Semana
+              </label>
+              <input 
+                type="number" min="1" max="7"
+                value={profile.training_days || ""} 
+                onChange={e => setProfile({...profile, training_days: e.target.value})}
+                className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none font-mono" 
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-text-secondary uppercase tracking-widest font-mono">Experiencia</label>
+              <select 
+                value={profile.experience_level || ""} 
+                onChange={e => setProfile({...profile, experience_level: e.target.value})}
+                className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none cursor-pointer appearance-none"
+              >
+                <option value="principiante">Principiante</option>
+                <option value="intermedio">Intermedio</option>
+                <option value="avanzado">Avanzado</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-2">
+            <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
               <Dumbbell className="w-3 h-3" /> Equipo Disponible
             </label>
             <input 
@@ -196,15 +288,17 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs text-text-secondary uppercase tracking-widest font-mono">Nivel de Experiencia</label>
+            <label className="text-xs text-text-secondary uppercase tracking-widest font-mono">Tipo de Dieta</label>
             <select 
-              value={profile.experience_level || ""} 
-              onChange={e => setProfile({...profile, experience_level: e.target.value})}
+              value={profile.diet_type || ""} 
+              onChange={e => setProfile({...profile, diet_type: e.target.value})}
               className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none cursor-pointer appearance-none"
             >
-              <option value="principiante">Principiante (&lt; 1 año)</option>
-              <option value="intermedio">Intermedio (1-3 años)</option>
-              <option value="avanzado">Avanzado (&gt; 3 años)</option>
+              <option value="normal">Normal (Sin restricción)</option>
+              <option value="vegetariano">Vegetariano</option>
+              <option value="vegano">Vegano</option>
+              <option value="keto">Keto</option>
+              <option value="paleo">Paleo</option>
             </select>
           </div>
         </div>
@@ -237,13 +331,29 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="md:col-span-2 flex justify-end mt-4">
+        {/* ACCIONES */}
+        <div className="md:col-span-2 flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+          <button 
+            type="button"
+            onClick={handleLogout}
+            className="h-12 px-8 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 font-bold hover:bg-red-500/10 transition-all flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" /> Cerrar Sesión
+          </button>
+
           <button 
             type="submit"
             disabled={saving}
             className="h-14 px-10 rounded-2xl bg-white text-background font-black text-lg flex items-center gap-3 hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-50"
           >
-            {saving ? "Salvando..." : <>Guardar Cambios <Save className="w-5 h-5" /></>}
+            {saving ? (
+              <>
+                <div className="w-5 h-5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>Guardar Cambios <Save className="w-5 h-5" /></>
+            )}
           </button>
         </div>
 
