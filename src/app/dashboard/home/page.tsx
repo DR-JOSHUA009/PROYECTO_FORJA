@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, Flame, UtilityPole, CheckCircle2, Dumbbell, GlassWater } from "lucide-react";
+import { Activity, Flame, Dumbbell, GlassWater, Moon, Bot, Trophy, ChevronRight, Zap, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +17,9 @@ export default function DashboardHome() {
   const [waterMl, setWaterMl] = useState<number>(0);
   const [caloriesConsumed, setCaloriesConsumed] = useState<number>(0);
   const [macros, setMacros] = useState({ protein: 0, carbs: 0, fats: 0 });
+  const [lastSleep, setLastSleep] = useState<any>(null);
+  const [lastCardio, setLastCardio] = useState<any>(null);
+  const [weekWorkouts, setWeekWorkouts] = useState(0);
 
   const supabase = createClient();
 
@@ -25,16 +28,12 @@ export default function DashboardHome() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Sincronización de seguridad (por si el trigger falló)
       await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
 
       const { data: pData } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
       setProfile(pData);
-      
-      // ... rest of loadData logic ...
 
       if (pData) {
-        // Calculate TDEE
         const weight = pData.weight_kg || 70;
         const intensityMult = pData.intensity === "alta" ? 1.6 : pData.intensity === "media" ? 1.4 : 1.2;
         let cals = Math.round(weight * 22 * intensityMult);
@@ -43,38 +42,38 @@ export default function DashboardHome() {
         setTargetCals(cals);
       }
 
-      // Load today's routine
+      const today = new Date().toISOString().split('T')[0];
       const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-      const today = days[new Date().getDay()];
+      const dayName = days[new Date().getDay()];
 
-      const { data: rData } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", today).single();
+      const { data: rData } = await supabase.from("routines").select("*").eq("user_id", user.id).eq("day_of_week", dayName).single();
       setTodayRoutine(rData);
 
-      // Fetch Water Logs for today
-      const { data: wData } = await supabase
-        .from("water_logs")
-        .select("amount_ml")
-        .eq("user_id", user.id)
-        .eq("date", new Date().toISOString().split('T')[0]);
-      
-      const totalWater = wData ? wData.reduce((acc, log) => acc + (log.amount_ml || 0), 0) : 0;
-      setWaterMl(totalWater);
+      const { data: wData } = await supabase.from("water_logs").select("amount_ml").eq("user_id", user.id).eq("date", today);
+      setWaterMl(wData?.reduce((acc, l) => acc + (l.amount_ml || 0), 0) || 0);
 
-      // Fetch Food Logs for calories and macros
-      const { data: fData } = await supabase
-        .from("food_logs")
-        .select("calories, protein, carbs, fats")
-        .eq("user_id", user.id)
-        .eq("date", new Date().toISOString().split('T')[0]);
-      
+      const { data: fData } = await supabase.from("food_logs").select("calories, protein, carbs, fats").eq("user_id", user.id).eq("date", today);
       if (fData) {
-        setCaloriesConsumed(fData.reduce((acc, log) => acc + (log.calories || 0), 0));
+        setCaloriesConsumed(fData.reduce((a, l) => a + (l.calories || 0), 0));
         setMacros({
-          protein: Math.round(fData.reduce((acc, log) => acc + (log.protein || 0), 0)),
-          carbs: Math.round(fData.reduce((acc, log) => acc + (log.carbs || 0), 0)),
-          fats: Math.round(fData.reduce((acc, log) => acc + (log.fats || 0), 0)),
+          protein: Math.round(fData.reduce((a, l) => a + (l.protein || 0), 0)),
+          carbs: Math.round(fData.reduce((a, l) => a + (l.carbs || 0), 0)),
+          fats: Math.round(fData.reduce((a, l) => a + (l.fats || 0), 0)),
         });
       }
+
+      // Último sueño
+      const { data: sData } = await supabase.from("sleep_logs").select("*").eq("user_id", user.id).order("date", { ascending: false }).limit(1);
+      if (sData && sData.length > 0) setLastSleep(sData[0]);
+
+      // Último cardio
+      const { data: cData } = await supabase.from("cardio_sessions").select("*").eq("user_id", user.id).order("date", { ascending: false }).limit(1);
+      if (cData && cData.length > 0) setLastCardio(cData[0]);
+
+      // Workouts esta semana
+      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+      const { data: wkData } = await supabase.from("workout_logs").select("id").eq("user_id", user.id).gte("created_at", weekAgo.toISOString());
+      setWeekWorkouts(wkData?.length || 0);
 
       setLoading(false);
     }
@@ -84,8 +83,6 @@ export default function DashboardHome() {
   const handleAddWater = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    // Aseguar que el usuario existe en public.users (por si falló el trigger)
     await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
 
     const { error } = await supabase.from("water_logs").insert({
@@ -95,11 +92,10 @@ export default function DashboardHome() {
     });
 
     if (error) {
-      console.error("Error al registrar agua:", error);
-      // Podemos usar un alert simple o toast si lo tuviéramos importado
-      alert("Error al registrar agua: Revisa tu conexión o perfil.");
+      toast("Error al registrar agua", "error");
     } else {
       setWaterMl(prev => prev + 250);
+      toast("💧 +250ml registrados", "success");
     }
   };
 
@@ -111,61 +107,90 @@ export default function DashboardHome() {
     );
   }
 
-  const targetWater = 3500;
+  const targetWater = (profile?.weight_kg || 70) * 35;
   const waterPercentage = Math.min((waterMl / targetWater) * 100, 100);
   const caloriePercentage = Math.min((caloriesConsumed / targetCals) * 100, 100);
+  const currentLevel = profile?.level || 1;
+  const currentXp = profile?.xp || 0;
+  const xpInLevel = currentXp % 1000;
+  const greeting = new Date().getHours() < 12 ? "Buenos días" : new Date().getHours() < 18 ? "Buenas tardes" : "Buenas noches";
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">
-      <header className="mb-10">
-        <h1 className="text-3xl font-bold text-white mb-2 font-mono tracking-tighter">SISTEMA ACTIVO</h1>
-        <p className="text-text-secondary text-sm uppercase tracking-widest font-mono">Panel de Control Bio-Sincronizado</p>
+      
+      {/* HEADER CON SALUDO PERSONALIZADO */}
+      <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <p className="text-text-secondary text-sm uppercase tracking-widest font-mono mb-1">{greeting}</p>
+          <h1 className="text-3xl font-bold text-white">{profile?.full_name || "Atleta"}</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="glass px-4 py-3 rounded-2xl border border-white/5 flex items-center gap-3">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono">LVL</span>
+              <span className="text-xl font-black text-white">{currentLevel}</span>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono">XP</span>
+              <span className="text-xl font-black text-primary">{currentXp}</span>
+            </div>
+          </div>
+        </div>
       </header>
 
-      {/* KPI WIDGETS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {[
-          { icon: Flame, title: "Calorías Objetivo", value: targetCals, sub: "kcals recomendadas", col: "text-orange-400 border-orange-400/20" },
-          { icon: UtilityPole, title: "Nivel de Peso", value: profile?.weight_kg || 0, sub: "Kilogramos actuales", col: "text-white border-white/20" },
-          { icon: Activity, title: "Edad", value: profile?.age || 0, sub: "Años biológicos", col: "text-primary border-primary/20" },
-          { icon: CheckCircle2, title: "Días de entreno", value: profile?.training_days || 0, sub: "Días a la semana", col: "text-emerald-400 border-emerald-400/20" },
-        ].map((widget, i) => {
-          const Icon = widget.icon;
-          return (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className={`glass p-6 rounded-2xl border-l-[3px] border-t-white/5 border-r-white/5 border-b-white/5 ${widget.col}`}
-            >
-              <div className="flex items-center gap-3 mb-4 text-text-secondary">
-                <Icon className="w-5 h-5 flex-shrink-0 current-color" />
-                <span className="text-sm font-medium tracking-wide">{widget.title}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-3xl font-bold text-white tracking-widest">{widget.value}</span>
-                <span className="text-[10px] uppercase font-mono text-text-muted mt-1">{widget.sub}</span>
-              </div>
-            </motion.div>
-          );
-        })}
+      {/* XP PROGRESS BAR */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[10px] text-text-muted font-mono uppercase tracking-widest">Progreso al nivel {currentLevel + 1}</span>
+          <span className="text-[10px] text-text-muted font-mono">{xpInLevel} / 1000 XP</span>
+        </div>
+        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+          <motion.div initial={{ width: 0 }} animate={{ width: `${xpInLevel / 10}%` }} className="h-full bg-primary rounded-full shadow-[0_0_10px_rgba(9,250,211,0.3)]" />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* KPI ROW */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { icon: Flame, title: "Calorías Obj.", value: targetCals, sub: "kcal/día", color: "text-orange-400" },
+          { icon: Dumbbell, title: "Entrenos/Sem.", value: `${weekWorkouts}/${profile?.training_days || 5}`, sub: "completados", color: "text-white" },
+          { icon: Moon, title: "Sueño", value: lastSleep ? `${Number(lastSleep.hours_slept).toFixed(1)}h` : "—", sub: "anoche", color: "text-blue-400" },
+          { icon: Activity, title: "Cardio", value: lastCardio ? `${lastCardio.duration_min}min` : "—", sub: lastCardio?.activity || "sin registro", color: "text-cyan-400" },
+        ].map((w, i) => (
+          <motion.div
+            key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+            className="glass p-5 rounded-2xl border border-white/5 hover:border-white/15 transition-all"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <w.icon className={`w-4 h-4 ${w.color}`} />
+              <span className="text-[10px] text-text-secondary uppercase tracking-widest font-mono">{w.title}</span>
+            </div>
+            <span className="text-2xl font-bold text-white block">{w.value}</span>
+            <span className="text-[10px] text-text-muted uppercase font-mono">{w.sub}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         
         {/* RUTINA DEL DÍA */}
         <div className="md:col-span-2 flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-white select-none">Entrenamiento Programado</h2>
+          <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted">Entrenamiento Programado</h2>
           <div className="glass p-8 rounded-2xl border border-white/5 h-full flex flex-col justify-center relative overflow-hidden group">
             
             {todayRoutine ? (
               todayRoutine.is_rest_day ? (
                 <>
                   <Activity className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
-                  <span className="text-xs text-primary font-mono tracking-widest uppercase mb-2">Día de Descanso Activo</span>
+                  <span className="text-xs text-blue-400 font-mono tracking-widest uppercase mb-2">Día de Descanso Activo</span>
                   <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%]">Recuperación</h3>
-                  <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">Hoy el sistema indica recuperación. Enfócate en estiramientos y descanso total.</p>
+                  <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">Hoy el sistema indica recuperación. Enfócate en estiramientos y descanso.</p>
+                  <Link href="/dashboard/sleep">
+                    <button className="h-12 w-max px-8 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-sm">
+                      Registrar Sueño
+                    </button>
+                  </Link>
                 </>
               ) : (
                 <>
@@ -175,83 +200,98 @@ export default function DashboardHome() {
                     {todayRoutine.exercises?.length || 0} Ejercicios
                   </h3>
                   <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">
-                    Rutina lista. Hoy toca exigir el sistema al máximo según los parámetros calculados.
+                    Rutina lista. Activa el Modo Enfoque para una sesión inmersiva.
                   </p>
                   <Link href="/dashboard/gym">
                     <button className="h-12 w-max px-8 rounded-xl bg-white text-background font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all text-sm relative z-10">
-                      Iniciar Bloque
+                      Iniciar Bloque →
                     </button>
                   </Link>
                 </>
               )
             ) : (
               <>
-                <Dumbbell className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5 group-hover:text-primary/5 transition-colors" />
+                <Dumbbell className="absolute -right-10 -bottom-10 w-64 h-64 text-white/5" />
                 <span className="text-xs text-text-muted font-mono tracking-widest uppercase mb-2">No Programado</span>
-                <h3 className="text-4xl font-black text-white mb-4 leading-tight w-[80%] uppercase">Pendiente</h3>
-                <p className="text-text-secondary max-w-sm mb-8 text-sm leading-relaxed">Todavía no tienes un plan para hoy. Visita el agente de IA para crear tu bloque.</p>
+                <h3 className="text-3xl font-black text-white mb-4">Sin rutina para hoy</h3>
+                <p className="text-text-secondary max-w-sm mb-8 text-sm">Pide al agente IA que genere tu plan semanal.</p>
+                <Link href="/dashboard/agent">
+                  <button className="h-12 w-max px-8 rounded-xl border border-primary/20 bg-primary/5 text-primary font-bold hover:bg-primary/10 transition-all text-sm">
+                    <Bot className="w-4 h-4 inline mr-2" />Hablar con FORJA
+                  </button>
+                </Link>
               </>
             )}
-
           </div>
         </div>
 
         {/* NUTRICIÓN Y AGUA */}
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-white select-none">Progreso Bio</h2>
+          <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted">Progreso Bio</h2>
           <div className="glass p-8 rounded-2xl border border-white/5 h-full flex flex-col items-center justify-center text-center relative overflow-hidden">
             
             <div className="mb-6 flex flex-col items-center">
               <WaterVessel percentage={waterPercentage} />
               <div className="mt-4 flex flex-col items-center">
                 <span className="text-2xl font-bold text-white">{(waterMl / 1000).toFixed(1)}L</span>
-                <span className="text-[10px] text-text-secondary uppercase tracking-widest font-mono">Hidratación</span>
+                <span className="text-[10px] text-text-secondary uppercase tracking-widest font-mono">de {(targetWater / 1000).toFixed(1)}L</span>
               </div>
             </div>
 
-            <div className="w-full flex flex-col gap-4 mt-6 border-t border-white/5 pt-6">
+            <div className="w-full flex flex-col gap-4 mt-4 border-t border-white/5 pt-6">
               <div className="flex justify-between text-sm">
                 <span className="text-text-secondary font-mono tracking-widest uppercase text-xs">Calorías</span>
                 <span className="text-white font-bold">{caloriesConsumed} <span className="text-text-muted font-normal">/ {targetCals}</span></span>
               </div>
               <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${caloriePercentage}%` }} className="h-full bg-white" />
+                <motion.div initial={{ width: 0 }} animate={{ width: `${caloriePercentage}%` }} className="h-full bg-white rounded-full" />
               </div>
 
-              <div className="flex justify-between text-sm mt-3">
-                <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">Proteína</span>
-                <span className="text-white font-bold">{macros.protein}g</span>
-              </div>
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((macros.protein/180)*100, 100)}%` }} className="h-full bg-primary" />
-              </div>
-
-              <div className="flex justify-between text-sm mt-2">
-                <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">Carbohidratos</span>
-                <span className="text-white font-bold">{macros.carbs}g</span>
-              </div>
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((macros.carbs/300)*100, 100)}%` }} className="h-full bg-orange-400" />
-              </div>
-
-              <div className="flex justify-between text-sm mt-2">
-                <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">Grasas</span>
-                <span className="text-white font-bold">{macros.fats}g</span>
-              </div>
-              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((macros.fats/80)*100, 100)}%` }} className="h-full bg-blue-400" />
-              </div>
+              {[
+                { label: "Proteína", val: macros.protein, max: 180, color: "bg-primary" },
+                { label: "Carbohidratos", val: macros.carbs, max: 300, color: "bg-orange-400" },
+                { label: "Grasas", val: macros.fats, max: 80, color: "bg-blue-400" },
+              ].map((m, i) => (
+                <div key={i}>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-text-secondary font-mono tracking-widest uppercase text-[10px]">{m.label}</span>
+                    <span className="text-white font-bold">{m.val}g</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min((m.val / m.max) * 100, 100)}%` }} className={`h-full ${m.color} rounded-full`} />
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <button onClick={handleAddWater} className="mt-8 w-full group relative overflow-hidden h-12 rounded-xl border border-primary/20 bg-primary/5 text-primary font-bold hover:bg-primary/10 transition-all active:scale-95">
-              <span className="flex items-center justify-center gap-2 relative z-10">
-                <GlassWater className="w-4 h-4" />
-                +250ml
-              </span>
+            <button onClick={handleAddWater} className="mt-8 w-full group h-12 rounded-xl border border-primary/20 bg-primary/5 text-primary font-bold hover:bg-primary/10 transition-all active:scale-95 flex items-center justify-center gap-2">
+              <GlassWater className="w-4 h-4" /> +250ml
             </button>
           </div>
         </div>
+      </div>
 
+      {/* ACCESOS RÁPIDOS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Agente IA", icon: Bot, href: "/dashboard/agent", color: "text-primary" },
+          { label: "Logros", icon: Trophy, href: "/dashboard/achievements", color: "text-yellow-400" },
+          { label: "Estadísticas", icon: TrendingUp, href: "/dashboard/stats", color: "text-white" },
+          { label: "Cardio", icon: Zap, href: "/dashboard/cardio", color: "text-cyan-400" },
+        ].map((link, i) => (
+          <Link key={i} href={link.href}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.08 }}
+              className="glass p-5 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-white/20 transition-all cursor-pointer active:scale-95"
+            >
+              <div className="flex items-center gap-3">
+                <link.icon className={`w-5 h-5 ${link.color}`} />
+                <span className="text-sm font-medium text-white">{link.label}</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-white group-hover:translate-x-1 transition-all" />
+            </motion.div>
+          </Link>
+        ))}
       </div>
     </div>
   );
