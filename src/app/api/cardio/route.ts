@@ -41,7 +41,12 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, log: data });
+    // Sumar XP por registrar cardio
+    const { data: pData } = await supabase.from("users_profile").select("xp, level").eq("user_id", user.id).single();
+    const newXp = (pData?.xp || 0) + 200;
+    await supabase.from("users_profile").update({ xp: newXp, level: Math.floor(newXp / 1000) + 1 }).eq("user_id", user.id);
+
+    return NextResponse.json({ success: true, log: data, ai_feedback: aiFeedback, xp_earned: 200 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
