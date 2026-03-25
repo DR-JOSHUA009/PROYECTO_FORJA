@@ -105,7 +105,23 @@ export async function POST(req: Request) {
 
     } catch (llmError) {
       console.warn("Fallo el LLM, guardaremos datos por defecto", llmError);
-      // Fallback si la IA falla pero el perfil sí guardó
+    }
+
+    // 5. Enviar email de bienvenida (no bloquea la respuesta si falla)
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      await fetch(`${appUrl}/api/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "welcome",
+          to: user.email,
+          name: payload.nombre || "Atleta",
+          data: { trainingDays: payload.dias || 5 }
+        })
+      });
+    } catch (emailErr) {
+      console.warn("Email de bienvenida no enviado:", emailErr);
     }
 
     return NextResponse.json({ success: true, message: "Onboarding completado." });

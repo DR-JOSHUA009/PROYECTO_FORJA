@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Apple, Plus, Search, Flame } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import WaterVessel from "@/components/dashboard/WaterVessel";
 import { Droplet } from "lucide-react";
@@ -19,8 +19,9 @@ export default function DietModule() {
   const [waterToday, setWaterToday] = useState(0);
   const [isAddingWater, setIsAddingWater] = useState(false);
 
-  const loadDiet = async () => {
-    const supabase = createClient();
+  const supabase = createClient();
+
+  const loadDiet = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -56,11 +57,41 @@ export default function DietModule() {
     setWaterToday(wData?.reduce((acc, l) => acc + (l.amount_ml || 0), 0) || 0);
     
     setLoading(false);
-  }
+  }, [supabase]);
 
   useEffect(() => {
     loadDiet();
-  }, []);
+  }, [loadDiet]);
+
+  // --- SUPABASE REALTIME: escuchar cambios en diet_plans ---
+  useEffect(() => {
+    let channel: any;
+
+    async function setupRealtime() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('diet-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'diet_plans',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            toast("🍎 Tu plan de dieta se actualizó desde el agente IA", "info");
+            loadDiet();
+          }
+        )
+        .subscribe();
+    }
+
+    setupRealtime();
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [supabase, loadDiet, toast]);
 
   const [ingested, setIngested] = useState({ cals: 0, pro: 0, carbs: 0, fats: 0 });
   const [isAnalyzing, setIsAnalyzing] = useState(false);

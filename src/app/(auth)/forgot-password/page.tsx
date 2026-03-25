@@ -2,22 +2,34 @@
 
 import AuthCard from "@/components/auth/AuthCard";
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import { Mail } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    // Simulando Supabase email send
-    setTimeout(() => {
+    const supabase = createClient();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
+    });
+
+    if (resetError) {
+      setError(resetError.message);
+      setIsLoading(false);
+    } else {
       setIsLoading(false);
       setSuccess(true);
-    }, 1500);
+    }
   };
 
   return (
@@ -36,17 +48,30 @@ export default function ForgotPasswordPage() {
               <input
                 type="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full h-12 bg-[#0e0e0e] text-white border border-white/20 focus:border-white rounded-xl px-4 text-sm outline-none transition-colors"
-                placeholder="Identificador del sistema (ej. tu@email.com)"
+                placeholder="tu@email.com"
               />
             </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 bg-white text-background font-bold rounded-xl mt-2 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-white text-background font-bold rounded-xl mt-2 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isLoading ? "Procesando..." : "Solicitar Reseteo"}
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+                  Procesando...
+                </>
+              ) : "Solicitar Reseteo"}
             </button>
           </form>
         ) : (
@@ -56,13 +81,13 @@ export default function ForgotPasswordPage() {
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Señal Emitida</h3>
             <p className="text-text-secondary text-sm mb-6">
-              Revisa tu terminal de entrada (Bandeja de correo). Hemos enviado el paquete de recuperación.
+              Revisa tu bandeja de correo (<span className="text-white font-mono">{email}</span>). Hemos enviado el enlace de recuperación.
             </p>
             <button 
-              onClick={() => setSuccess(false)}
+              onClick={() => { setSuccess(false); setEmail(""); }}
               className="text-white text-sm hover:underline"
             >
-              Probar de nuevo
+              Probar con otro email
             </button>
           </div>
         )}
