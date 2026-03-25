@@ -7,39 +7,18 @@ export async function POST(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { messages } = await req.json();
-
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: "Formato de mensajes inválido" }, { status: 400 });
-    }
-
-    // 1. Obtener contexto completo del usuario
     const { data: profile } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
-    const { data: routines } = await supabase.from("routines").select("day_of_week, exercises").eq("user_id", user.id);
-    const { data: diet } = await supabase.from("diet_plans").select("meal_type, foods").eq("user_id", user.id);
 
-    // 2. Construir System Prompt
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
+
     const systemPrompt = `
-      Eres FORJA, el Agente IA maestro de un SaaS fitness premium. Operas en español latino.
-      CONTEXTO BIOMÉTRICO:
-      - Nombre/Usuario: ${profile?.full_name || profile?.username || "Usuario"}
-      - Peso: ${profile?.weight_kg || 0}kg | Altura: ${profile?.height_cm || 0}cm | Edad: ${profile?.age || 0} años
-      - Objetivo: ${profile?.goal || "Mejorar salud"}
-      - Equipo: ${profile?.equipment || "Solo peso corporal"}
-      
-      FECHA ACTUAL: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        
-      RUTINA ACTUAL: ${JSON.stringify(routines || [])}
-      DIETA ACTUAL: ${JSON.stringify(diet || [])}
-
-      REGLAS:
-      1. Si el usuario pide cambios, USA LAS TOOLS.
-      2. Responde en español, sé motivador pero directo.
-      3. No menciones que eres una IA a menos que sea necesario.
+      Eres FORJA, el Agente IA maestro. 
+      REGLA MAESTRA: Al proponer cambios en RUTINA o DIETA, serás específico. 
+      Tu objetivo es ayudar al usuario a alcanzar: ${profile?.goal || "Salud"}.
+      No apliques cambios de rutina/dieta automáticamente, el usuario debe confirmarlos.
     `;
 
     const groqMessages = [
@@ -50,15 +29,12 @@ export async function POST(req: Request) {
       }))
     ];
 
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
-
-    // Definición de Herramientas
     const tools: any[] = [
       {
         type: "function",
         function: {
           name: "update_routine_day",
-          description: "Actualiza la rutina de un día.",
+          description: "Propone cambios en la rutina.",
           parameters: {
             type: "object",
             properties: {
@@ -80,7 +56,7 @@ export async function POST(req: Request) {
         type: "function",
         function: {
           name: "update_diet_meal",
-          description: "Actualiza una comida.",
+          description: "Propone cambios en la dieta.",
           parameters: {
             type: "object",
             properties: {
@@ -102,46 +78,20 @@ export async function POST(req: Request) {
         type: "function",
         function: {
           name: "log_activity",
-          description: "Registra actividad diaria.",
+          description: "Registra actividad (agua, cardio).",
           parameters: {
             type: "object",
             properties: {
-              type: { type: "string", enum: ["water", "food", "cardio", "sleep"] },
+              type: { type: "string", enum: ["water", "cardio"] },
               value: { type: "number" },
               detail: { type: "string" }
             },
             required: ["type", "value"]
           }
         }
-      },
-      {
-        type: "function",
-        function: {
-          name: "suggest_navigation",
-          description: "Sugiere ir a una sección.",
-          parameters: {
-            type: "object",
-            properties: {
-              section: { type: "string", enum: ["perfil", "gym", "dieta", "cardio", "sueño", "stats", "logros"] },
-              label: { type: "string" }
-            },
-            required: ["section", "label"]
-          }
-        }
       }
     ];
 
-    // --- Persistencia mensaje del usuario ---
-    const userMsgContent = messages[messages.length - 1]?.content;
-    if (userMsgContent) {
-      await supabase.from("agent_conversations").insert({
-        user_id: user.id,
-        role: "user",
-        content: userMsgContent
-      });
-    }
-
-    // 4. Iniciar Completion con Streaming
     const completion = await groq.chat.completions.create({
       messages: groqMessages,
       model: "llama-3.3-70b-versatile",
@@ -151,69 +101,50 @@ export async function POST(req: Request) {
     });
 
     const encoder = new TextEncoder();
-
     const stream = new ReadableStream({
       async start(controller) {
         let fullResponse = "";
         let toolCallsBuffer: any[] = [];
-        let metadataToSend: any = null;
+        let metadata = null;
 
         try {
           for await (const chunk of completion) {
             const delta = chunk.choices[0]?.delta;
-
-            // Manejar texto
             if (delta?.content) {
               fullResponse += delta.content;
               controller.enqueue(encoder.encode(delta.content));
             }
-
-            // Manejar tool_calls (fragmentados en stream)
             if (delta?.tool_calls) {
               for (const tc of delta.tool_calls) {
-                if (!toolCallsBuffer[tc.index]) {
-                  toolCallsBuffer[tc.index] = { name: "", args: "" };
-                }
+                if (!toolCallsBuffer[tc.index]) toolCallsBuffer[tc.index] = { name: "", args: "" };
                 if (tc.function?.name) toolCallsBuffer[tc.index].name = tc.function.name;
                 if (tc.function?.arguments) toolCallsBuffer[tc.index].args += tc.function.arguments;
               }
             }
           }
 
-          // Si hubo Tool Calls, procesarlos
           const activeTools = toolCallsBuffer.filter(t => t.name);
           if (activeTools.length > 0) {
-            let toolUsed = "";
             for (const tool of activeTools) {
-              toolUsed = tool.name;
               const args = JSON.parse(tool.args || "{}");
               let confirmText = "";
 
               if (tool.name === "update_routine_day") {
-                await supabase.from("routines").upsert({ 
-                  user_id: user.id, day_of_week: args.day_of_week, exercises: args.exercises 
-                }, { onConflict: 'user_id,day_of_week' });
-                confirmText = `\n\n✅ He actualizado tu rutina del **${args.day_of_week}**. Los cambios ya son visibles en tu Dashboard de Gym.`;
+                const { data: before } = await supabase.from("routines").select("exercises").eq("user_id", user.id).eq("day_of_week", args.day_of_week).single();
+                metadata = { act_type: "confirmation_request", tool: "routine", day_of_week: args.day_of_week, before: before?.exercises || [], after: args.exercises };
+                confirmText = `\n\nHe analizado tu progreso y he diseñado un ajuste para tu rutina del **${args.day_of_week}**. ¿Deseas aplicar estos cambios?`;
               } 
               else if (tool.name === "update_diet_meal") {
-                await supabase.from("diet_plans").upsert({ 
-                  user_id: user.id, meal_type: args.meal_type, foods: args.foods 
-                }, { onConflict: 'user_id,meal_type' });
-                confirmText = `\n\n✅ He ajustado tu **${args.meal_type}** con los nuevos parámetros nutricionales.`;
+                const { data: before } = await supabase.from("diet_plans").select("foods").eq("user_id", user.id).eq("meal_type", args.meal_type).single();
+                metadata = { act_type: "confirmation_request", tool: "diet", meal_type: args.meal_type, before: before?.foods || [], after: args.foods };
+                confirmText = `\n\nHe preparado una propuesta de optimización para tu **${args.meal_type}**. Revisa el desglose a continuación.`;
               }
               else if (tool.name === "log_activity") {
                 const today = new Date().toISOString().split('T')[0];
                 if (args.type === "water") {
                   await supabase.from("water_logs").insert({ user_id: user.id, amount_ml: args.value, date: today });
-                  confirmText = `\n\n💧 Registrado: **${args.value}ml** de agua añadidos.`;
-                } else if (args.type === "cardio") {
-                  await supabase.from("cardio_sessions").insert({ user_id: user.id, activity: args.detail || "Cardio", duration_min: args.value });
-                  confirmText = `\n\n🏃 Sesión de cardio (${args.detail}) de **${args.value} min** guardada.`;
+                  confirmText = `\n\n💧 ¡Registrado! He añadido **${args.value}ml** a tu ingesta de agua.`;
                 }
-              }
-              else if (tool.name === "suggest_navigation") {
-                metadataToSend = { act_type: "navigation", section: args.section, label: args.label };
-                confirmText = `\n\nTe sugiero ir a la sección de **${args.section}**.`;
               }
 
               if (confirmText) {
@@ -221,50 +152,22 @@ export async function POST(req: Request) {
                 controller.enqueue(encoder.encode(confirmText));
               }
             }
-
-            // Guardar en DB la respuesta de la herramienta
-            await supabase.from("agent_conversations").insert({
-              user_id: user.id,
-              role: "assistant",
-              content: fullResponse,
-              tool_used: toolUsed,
-              change_applied: true
-            });
-          } else {
-            // Guardar en DB la respuesta normal
-            if (fullResponse) {
-              await supabase.from("agent_conversations").insert({
-                user_id: user.id,
-                role: "assistant",
-                content: fullResponse
-              });
-            }
           }
 
-          // Enviar metadatos al final si existen
-          if (metadataToSend) {
-            controller.enqueue(encoder.encode(`\n__METADATA__${JSON.stringify(metadataToSend)}`));
+          if (fullResponse) {
+             await supabase.from("agent_conversations").insert({ user_id: user.id, role: "assistant", content: fullResponse });
           }
-
-        } catch (err) {
-          console.error("Stream error:", err);
-          controller.enqueue(encoder.encode("\n\n[Error en el flujo del Agente]"));
+          if (metadata) {
+            controller.enqueue(encoder.encode(`\n__METADATA__${JSON.stringify(metadata)}`));
+          }
         } finally {
           controller.close();
         }
       }
     });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-      },
-    });
-
+    return new Response(stream, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   } catch (error: any) {
-    console.error("Agent Error:", error);
-    return NextResponse.json({ error: error.message || "Error interno." }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
