@@ -14,6 +14,37 @@ export async function POST(req: Request) {
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
 
+    // ─── Cargar memorias de largo plazo ──────────────────────────────
+    const { data: memories } = await supabase
+      .from("agent_memory")
+      .select("category, fact")
+      .eq("user_id", user.id)
+      .order("relevance", { ascending: false })
+      .limit(30);
+
+    let memoryBlock = "";
+    if (memories && memories.length > 0) {
+      const grouped: Record<string, string[]> = {};
+      for (const m of memories) {
+        if (!grouped[m.category]) grouped[m.category] = [];
+        grouped[m.category].push(m.fact);
+      }
+      const categoryLabels: Record<string, string> = {
+        injury: "🩹 Lesiones",
+        preference: "⭐ Preferencias",
+        pattern: "📈 Patrones detectados",
+        equipment: "🏋️ Equipamiento",
+        allergy: "⚠️ Alergias/Intolerancias",
+        goal_change: "🎯 Cambios de objetivo",
+        general: "📝 Notas generales",
+      };
+      memoryBlock = "\n\nMEMORIA PERSISTENTE (datos que el usuario te ha compartido en conversaciones pasadas — úsalos sin necesidad de preguntar de nuevo):\n";
+      for (const [cat, facts] of Object.entries(grouped)) {
+        memoryBlock += `${categoryLabels[cat] || cat}:\n`;
+        for (const f of facts) memoryBlock += `  - ${f}\n`;
+      }
+    }
+
     const systemPrompt = `
       Eres FORJA, el Agente IA maestro de fitness y nutrición.
       
@@ -28,12 +59,13 @@ export async function POST(req: Request) {
       - Dieta: ${profile?.diet_type || "normal"} | Restricciones: ${profile?.food_restrictions || "Ninguna"}
       - Lesiones: ${profile?.injuries || "Ninguna"} | Enfermedades: ${profile?.diseases || "Ninguna"}
       - Nivel XP: ${profile?.xp || 0} | Nivel: ${profile?.level || 1}
+      ${memoryBlock}
 
       REGLAS:
       1. Al proponer cambios en RUTINA o DIETA, usa las herramientas update_routine_day o update_diet_meal. NUNCA apliques cambios sin confirmación del usuario.
       2. Para registrar sueño, cardio o agua, usa las herramientas log_sleep, log_cardio o log_activity respectivamente. Estos SÍ se aplican directo.
       3. Cuando el usuario pida ver su progreso o estadísticas, usa get_user_stats para leer datos reales antes de responder.
-      4. Sé conciso, motivador y personalizado. Usa los datos del perfil para dar consejos relevantes.
+      4. Sé conciso, motivador y personalizado. Usa los datos del perfil y la MEMORIA PERSISTENTE para dar consejos relevantes sin pedir información que ya conoces.
       5. Responde siempre en español.
       6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
     `;
@@ -424,6 +456,13 @@ Usa emojis relevantes pero sin exagerar.`
           if (metadata) {
             controller.enqueue(encoder.encode(`\n__METADATA__${JSON.stringify(metadata)}`));
           }
+
+          // ─── Extracción automática de memorias (background, no bloquea) ───
+          const lastUserMsg = messages.filter((m: any) => m.role === "user").pop()?.content || "";
+          if (lastUserMsg.length > 10) {
+            extractAndSaveMemories(groq, supabase, user.id, lastUserMsg, fullResponse).catch(() => {});
+          }
+
         } finally {
           controller.close();
         }
@@ -433,5 +472,92 @@ Usa emojis relevantes pero sin exagerar.`
     return new Response(stream, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// ─── Extracción automática de memorias ─────────────────────────────────
+async function extractAndSaveMemories(
+  groq: any,
+  supabase: any,
+  userId: string,
+  userMessage: string,
+  assistantResponse: string
+) {
+  try {
+    const extraction = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system" as const,
+          content: `Eres un sistema de extracción de memoria para un agente de fitness. 
+Analiza la conversación y extrae SOLO hechos memorables y relevantes que el usuario haya mencionado.
+
+Categorías válidas:
+- "injury": Lesiones actuales o pasadas (ej: "tengo dolor de rodilla derecha", "me lesioné el hombro hace 2 meses")
+- "preference": Preferencias de entrenamiento o comida (ej: "no me gusta correr", "prefiero entrenar en las mañanas")
+- "equipment": Equipamiento disponible o limitaciones (ej: "solo tengo mancuernas en casa", "voy al gym con polea")
+- "allergy": Alergias o intolerancias alimenticias (ej: "soy intolerante a la lactosa", "tengo alergia al maní")
+- "pattern": Patrones detectados del usuario (ej: "suele entrenar de noche", "come poco en el desayuno")
+- "goal_change": Cambios en objetivo (ej: "quiero cambiar de bulk a cut", "ahora mi prioridad es resistencia")
+- "general": Otros datos importantes (ej: "viaja mucho por trabajo", "tiene competencia en 3 meses")
+
+Responde ÚNICAMENTE con un JSON array. Si no hay nada memorable, responde [].
+Cada elemento debe tener: { "category": "...", "fact": "...", "relevance": 1-10 }
+El fact debe ser una oración corta y concreta en tercera persona.
+NO extraigas datos que ya existen en un perfil típico (peso, edad, objetivo genérico). Solo datos EXTRA.`
+        },
+        {
+          role: "user" as const,
+          content: `Mensaje del usuario: "${userMessage}"\n\nRespuesta del agente: "${assistantResponse.substring(0, 500)}"`
+        }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0,
+      response_format: { type: "json_object" },
+    });
+
+    const content = extraction.choices[0]?.message?.content || "{}";
+    let parsed: any;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      return; // JSON inválido, ignorar
+    }
+
+    // Puede venir como { memories: [...] } o como array directo
+    const factsArray = Array.isArray(parsed) ? parsed : (parsed.memories || parsed.facts || []);
+    if (!Array.isArray(factsArray) || factsArray.length === 0) return;
+
+    for (const item of factsArray) {
+      if (!item.fact || !item.category) continue;
+
+      // Evitar duplicados: buscar si ya existe un hecho similar
+      const { data: existing } = await supabase
+        .from("agent_memory")
+        .select("id, fact")
+        .eq("user_id", userId)
+        .eq("category", item.category)
+        .ilike("fact", `%${item.fact.substring(0, 30)}%`)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        // Actualizar si ya existe (refrescar timestamp y posiblemente el texto)
+        await supabase
+          .from("agent_memory")
+          .update({ fact: item.fact, relevance: item.relevance || 5, updated_at: new Date().toISOString() })
+          .eq("id", existing[0].id);
+      } else {
+        // Insertar nuevo
+        await supabase.from("agent_memory").insert({
+          user_id: userId,
+          category: item.category,
+          fact: item.fact,
+          relevance: item.relevance || 5,
+          source: "agent",
+        });
+      }
+    }
+  } catch (err) {
+    // Silenciar errores de extracción — no debe afectar la respuesta principal
+    console.error("Memory extraction error (non-blocking):", err);
   }
 }

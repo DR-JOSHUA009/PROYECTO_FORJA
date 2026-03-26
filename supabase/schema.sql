@@ -133,6 +133,18 @@ CREATE TABLE agent_conversations (
   created_at timestamptz default now()
 );
 
+-- 11. Memoria de Largo Plazo del Agente
+CREATE TABLE agent_memory (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  category text not null,       -- 'injury', 'preference', 'pattern', 'equipment', 'allergy', 'goal_change', 'general'
+  fact text not null,            -- El hecho concreto a recordar
+  source text default 'agent',  -- 'agent' (extraído auto) o 'user' (dicho explícitamente)
+  relevance integer default 5,  -- 1-10: qué tan relevante es el dato
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- ==========================================
 -- POLÍTICAS RLS (Row Level Security)
 -- ==========================================
@@ -148,6 +160,7 @@ ALTER TABLE sleep_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_xp ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_memory ENABLE ROW LEVEL SECURITY;
 
 -- Crear política genérica para permitir a los usuarios acceder SOLO a sus propios datos
 CREATE POLICY "Users can fully manage their own data" ON users_profile
@@ -178,4 +191,7 @@ CREATE POLICY "Users can fully manage their own data" ON user_xp
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can fully manage their own data" ON agent_conversations
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can fully manage their own data" ON agent_memory
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
