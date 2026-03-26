@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       3. Cuando el usuario pida ver su progreso o estadísticas, usa get_user_stats para leer datos reales antes de responder.
       4. Sé conciso, motivador y personalizado. Usa los datos del perfil para dar consejos relevantes.
       5. Responde siempre en español.
+      6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
     `;
 
     const groqMessages = [
@@ -149,6 +150,20 @@ export async function POST(req: Request) {
               period: { type: "string", enum: ["today", "week", "month"], description: "Periodo de tiempo a consultar" }
             },
             required: ["period"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "check_food_context",
+          description: "Consulta los macronutrientes ya consumidos hoy y calcula cuánto le queda disponible al usuario según sus objetivos. SIEMPRE usa esta herramienta ANTES de responder preguntas como '¿puedo comer X?', '¿me queda espacio para comer?', '¿qué debería comer?', o cualquier consulta nutricional sobre el día actual.",
+          parameters: {
+            type: "object",
+            properties: {
+              food_query: { type: "string", description: "El alimento que el usuario quiere evaluar, ej: 'pizza', '2 tacos', 'un helado'. Dejar vacío si solo quiere ver el resumen de macros disponibles." }
+            },
+            required: []
           }
         }
       }
@@ -307,6 +322,60 @@ export async function POST(req: Request) {
                 const periodLabel = period === "today" ? "hoy" : period === "week" ? "esta semana" : "este mes";
 
                 confirmText = `\n\n📊 **Resumen de ${periodLabel}:**\n• 💧 Agua: ${totalWater}ml\n• 🔥 Calorías consumidas: ${Math.round(totalCals)} kcal\n• 😴 Sueño promedio: ${avgSleep}h (${sleepData?.length || 0} registros)\n• 🏃 Cardio: ${totalCardioMin} min totales | ${totalKm.toFixed(1)} km\n• 🎯 Sesiones de cardio: ${cardioData?.length || 0}\n• ⭐ XP actual: ${profile?.xp || 0} | Nivel: ${profile?.level || 1}`;
+              }
+              // --- TOOL: check_food_context (consulta nutricional en contexto real) ---
+              else if (tool.name === "check_food_context") {
+                // 1. Obtener todo lo consumido HOY
+                const { data: todayFood } = await supabase
+                  .from("food_logs")
+                  .select("food_name, calories, protein_g, carbs_g, fat_g")
+                  .eq("user_id", user.id)
+                  .eq("date", today);
+
+                const consumed = {
+                  calories: (todayFood || []).reduce((sum, f) => sum + (Number(f.calories) || 0), 0),
+                  protein: (todayFood || []).reduce((sum, f) => sum + (Number(f.protein_g) || 0), 0),
+                  carbs: (todayFood || []).reduce((sum, f) => sum + (Number(f.carbs_g) || 0), 0),
+                  fat: (todayFood || []).reduce((sum, f) => sum + (Number(f.fat_g) || 0), 0),
+                };
+
+                // 2. Calcular objetivos basados en el perfil (misma fórmula que el dashboard)
+                const weight = Number(profile?.weight_kg) || 70;
+                const intensityMult = profile?.intensity === "alta" ? 1.6 : profile?.intensity === "media" ? 1.4 : 1.2;
+                let targetCalories = Math.round(weight * 22 * intensityMult);
+                if (profile?.goal === "cut") targetCalories -= 500;
+                if (profile?.goal === "bulk") targetCalories += 300;
+
+                const targetProtein = Math.round(weight * 2.2);
+                const targetFat = Math.round(weight * 0.8);
+                const targetCarbs = Math.round((targetCalories - (targetProtein * 4 + targetFat * 9)) / 4);
+
+                // 3. Calcular lo que queda disponible
+                const remaining = {
+                  calories: Math.max(0, targetCalories - consumed.calories),
+                  protein: Math.max(0, targetProtein - consumed.protein),
+                  carbs: Math.max(0, targetCarbs - consumed.carbs),
+                  fat: Math.max(0, targetFat - consumed.fat),
+                };
+
+                // 4. Listar lo que ya comió hoy
+                const foodList = (todayFood || []).map(f => f.food_name).join(", ") || "nada aún";
+
+                // 5. Construir contexto completo para el agente
+                confirmText = `\n\n🍽️ **Contexto nutricional de hoy (datos reales):**\n`;
+                confirmText += `• Alimentos registrados: ${foodList}\n`;
+                confirmText += `\n📊 **Consumido hoy:**\n`;
+                confirmText += `• Calorías: ${Math.round(consumed.calories)} / ${targetCalories} kcal\n`;
+                confirmText += `• Proteína: ${Math.round(consumed.protein)} / ${targetProtein}g\n`;
+                confirmText += `• Carbohidratos: ${Math.round(consumed.carbs)} / ${targetCarbs}g\n`;
+                confirmText += `• Grasa: ${Math.round(consumed.fat)} / ${targetFat}g\n`;
+                confirmText += `\n✅ **Disponible restante:**\n`;
+                confirmText += `• ${Math.round(remaining.calories)} kcal | ${Math.round(remaining.protein)}g proteína | ${Math.round(remaining.carbs)}g carbos | ${Math.round(remaining.fat)}g grasa\n`;
+                confirmText += `\n🎯 Objetivo actual: **${profile?.goal || "mantenimiento"}** | Dieta: **${profile?.diet_type || "normal"}**`;
+
+                if (args.food_query) {
+                  confirmText += `\n\n🔍 El usuario quiere saber si puede comer: **${args.food_query}**. Responde basándote EXCLUSIVAMENTE en los macros restantes de arriba.`;
+                }
               }
 
               if (confirmText) {
