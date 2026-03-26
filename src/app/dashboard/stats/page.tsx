@@ -283,7 +283,7 @@ export default function StatsPage() {
 
         {/* PRO SECTION 1: Tendencia de Peso */}
         <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
-          <div className="p-8 filter blur-[6px] select-none pointer-events-none">
+          <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
             <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Tendencia de Peso (30 días)</h2>
             <p className="text-text-secondary text-sm mb-8">Evolución de tu peso corporal con predicción de IA.</p>
             <div className="flex items-end justify-between gap-2 h-[200px]">
@@ -300,21 +300,23 @@ export default function StatsPage() {
             </div>
           </div>
           {/* PRO Overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
-            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
-              <Lock className="w-7 h-7 text-yellow-400" />
+          {profile?.plan !== 'pro' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+                <Lock className="w-7 h-7 text-yellow-400" />
+              </div>
+              <span className="text-sm font-black text-white mb-1">Tendencia de Peso</span>
+              <span className="text-xs text-text-secondary mb-4">Seguimiento inteligente de tu peso con predicciones IA</span>
+              <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+                Desbloquear con PRO
+              </button>
             </div>
-            <span className="text-sm font-black text-white mb-1">Tendencia de Peso</span>
-            <span className="text-xs text-text-secondary mb-4">Seguimiento inteligente de tu peso con predicciones IA</span>
-            <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
-              Desbloquear con PRO
-            </button>
-          </div>
+          )}
         </div>
 
         {/* PRO SECTION 2: Análisis de Sueño IA */}
         <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
-          <div className="p-8 filter blur-[6px] select-none pointer-events-none">
+          <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
             <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Análisis de Sueño Inteligente</h2>
             <p className="text-text-secondary text-sm mb-6">Patrones de sueño analizados por inteligencia artificial.</p>
             <div className="grid grid-cols-2 gap-4">
@@ -336,21 +338,23 @@ export default function StatsPage() {
             </div>
           </div>
           {/* PRO Overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
-            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
-              <Lock className="w-7 h-7 text-yellow-400" />
+          {profile?.plan !== 'pro' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+                <Lock className="w-7 h-7 text-yellow-400" />
+              </div>
+              <span className="text-sm font-black text-white mb-1">Análisis IA de Sueño</span>
+              <span className="text-xs text-text-secondary mb-4">Insights avanzados sobre tus patrones de recuperación</span>
+              <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+                Desbloquear con PRO
+              </button>
             </div>
-            <span className="text-sm font-black text-white mb-1">Análisis IA de Sueño</span>
-            <span className="text-xs text-text-secondary mb-4">Insights avanzados sobre tus patrones de recuperación</span>
-            <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
-              Desbloquear con PRO
-            </button>
-          </div>
+          )}
         </div>
 
         {/* PRO SECTION 3: Proyección de Progreso */}
         <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
-          <div className="p-8 filter blur-[6px] select-none pointer-events-none">
+          <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
             <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Proyección de Progreso (6 meses)</h2>
             <p className="text-text-secondary text-sm mb-8">Predicción basada en tu ritmo actual de entrenamiento.</p>
             <div className="flex items-end justify-between gap-1 h-[180px]">
@@ -368,16 +372,18 @@ export default function StatsPage() {
             </div>
           </div>
           {/* PRO Overlay */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
-            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
-              <Lock className="w-7 h-7 text-yellow-400" />
+          {profile?.plan !== 'pro' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+                <Lock className="w-7 h-7 text-yellow-400" />
+              </div>
+              <span className="text-sm font-black text-white mb-1">Proyección de Progreso</span>
+              <span className="text-xs text-text-secondary mb-4">Ve dónde estarás en 6 meses según tu rendimiento actual</span>
+              <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+                Desbloquear con PRO
+              </button>
             </div>
-            <span className="text-sm font-black text-white mb-1">Proyección de Progreso</span>
-            <span className="text-xs text-text-secondary mb-4">Ve dónde estarás en 6 meses según tu rendimiento actual</span>
-            <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
-              Desbloquear con PRO
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

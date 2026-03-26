@@ -78,6 +78,7 @@ function ChatContent() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [limitReached, setLimitReached] = useState(false);
   const [dailyCount, setDailyCount] = useState(0);
+  const [userPlan, setUserPlan] = useState<string>("free");
   const FREE_LIMIT = 10;
   
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -112,6 +113,10 @@ function ChatContent() {
     async function loadDailyCount() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      const { data: pData } = await supabase.from("users_profile").select("plan").eq("user_id", user.id).single();
+      if (pData?.plan) setUserPlan(pData.plan);
+
       const todayStr = new Date().toISOString().split('T')[0];
       const { count } = await supabase
         .from("agent_conversations")
@@ -249,14 +254,19 @@ function ChatContent() {
           </h1>
           <p className="text-[10px] text-text-muted mt-1 tracking-widest font-mono uppercase">Interfaz Neural • Master Agent</p>
         </div>
-        <div className="flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse" />
-           <span className="text-[10px] text-emerald-500 font-mono font-bold tracking-widest">STREAM ACTIVE</span>
-           {!limitReached && (
-             <span className="text-[9px] font-mono text-text-muted ml-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
-               {Math.max(FREE_LIMIT - dailyCount, 0)}/{FREE_LIMIT}
-             </span>
-           )}
+        <div className="flex items-center gap-3">
+          {userPlan === 'pro' ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-full">
+              <span className="text-yellow-400 font-bold text-[10px] tracking-widest uppercase">💎 Ilimitado</span>
+            </div>
+          ) : (
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-full border shadow-sm ${dailyCount >= FREE_LIMIT ? 'border-red-500/30 text-red-400' : 'border-white/10 text-text-secondary'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${dailyCount >= FREE_LIMIT ? 'bg-red-500 animate-pulse' : 'bg-primary'}`} />
+              <span className="text-[10px] font-mono tracking-widest font-bold">
+                MSG <span className={dailyCount >= FREE_LIMIT ? 'text-red-400' : 'text-white'}>{Math.max(0, FREE_LIMIT - dailyCount)}</span>/{FREE_LIMIT}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 
