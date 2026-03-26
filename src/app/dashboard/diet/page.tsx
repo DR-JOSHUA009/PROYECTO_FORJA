@@ -174,13 +174,14 @@ export default function DietModule() {
   const intensityMult = profile?.intensity === "alta" ? 1.6 : profile?.intensity === "media" ? 1.4 : 1.2;
   const tdee = Math.round(weight * 22 * intensityMult); // Maintenance
   // Adjust based on goal
-  let targetCals = tdee;
-  if (profile?.goal === "cut") targetCals -= 500;
-  if (profile?.goal === "bulk") targetCals += 300;
+  let fallbackCals = tdee;
+  if (profile?.goal === "cut") fallbackCals -= 500;
+  if (profile?.goal === "bulk") fallbackCals += 300;
 
-  const targetPro = Math.round(weight * 2.2);
-  const targetFat = Math.round(weight * 0.8);
-  const targetCarbs = Math.round((targetCals - (targetPro * 4 + targetFat * 9)) / 4);
+  const targetCals = profile?.target_calories || fallbackCals;
+  const targetPro = profile?.target_protein || Math.round(weight * 2.2);
+  const targetFat = profile?.target_fat || Math.round(weight * 0.8);
+  const targetCarbs = profile?.target_carbs || Math.round((targetCals - (targetPro * 4 + targetFat * 9)) / 4);
 
   const ingestedCals = Math.round(ingested.cals); 
   const ingestedPro = Math.round(ingested.pro);

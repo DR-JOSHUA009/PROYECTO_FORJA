@@ -1,80 +1,68 @@
 # 📋 Log de Desarrollo — Proyecto FORJA
 
-Este archivo registra las mejoras aplicadas por Antigravity en la sesión del 25 de marzo de 2026.
+Este archivo registra las mejoras aplicadas por Antigravity en la sesión del 25 y 26 de marzo de 2026.
 
 ## 🚀 Mejoras Implementadas
 
 ### 1. Resumen Semanal Automatizado (IA & Automatización)
 - **Archivo:** `src/app/api/cron/weekly-summary/route.ts`
-- **Configuración:** `vercel.json`
-- **Descripción:** API operada por Vercel Cron que cada lunes agrega los datos de la semana del usuario (entrenamientos, calorías, macros, XP, sueño, agua) y envía un email premium mediante Resend.
-- **Seguridad:** Protegido por `CRON_SECRET`.
+- **Descripción:** API operada por Vercel Cron que cada lunes agrega los datos de la semana del usuario y envía un email premium mediante Resend.
 
 ### 2. Analizador de Alimentos en Contexto Real (IA & Automatización)
 - **Archivo:** `src/app/api/agent/chat/route.ts`
-- **Descripción:** El agente ahora consulta dinámicamente los `food_logs` del día y compara contra los objetivos del perfil.
-- **Lógica:** Implementada la tool `check_food_context` que realiza una doble llamada a Groq para dar una respuesta conversacional natural (ej: "Sí, puedes comer pizza, te quedan 1800 kcal").
+- **Descripción:** El agente consulta dinámicamente los `food_logs` del día y compara contra los objetivos del perfil.
 
 ### 3. Memoria de Largo Plazo del Agente (IA & Automatización)
-- **Archivos:** `supabase/schema.sql`, `supabase/migrations/003_agent_memory.sql`, `src/app/api/agent/chat/route.ts`
-- **Descripción:** Sistema de persistencia que recuerda lesiones, preferencias y patrones del usuario.
-- **Flujo:** 
-  1. El agente carga memorias al inicio e inyecta en el prompt.
-  2. Al finalizar la charla, una función `extractAndSaveMemories` extrae hechos nuevos automáticamente en background.
+- **Archivos:** `supabase/schema.sql`, `src/app/api/agent/chat/route.ts`
+- **Descripción:** Sistema de persistencia que recuerda lesiones, preferencias y patrones del usuario mediante extracción automática post-charla.
 
 ### 4. 🎮 Animación de desbloqueo de logros
-- **Estado Actual:** Existe la tabla `achievements` y se guardan los datos, pero la UI es estática.
-- **Qué falta:** 
-  - Detectar el momento exacto de la inserción en Supabase (probablemente vía Realtime o retorno de la API).
-  - Implementar un **Modal de Celebración** con `framer-motion` o `canvas-confetti`.
-  - Efectos visuales de "Glow" y sonido sutil de éxito para una experiencia Premium.
-
-
-
-## 📝 Análisis de Pendientes (Detallado)
-
-
+- **Archivo:** `src/components/ui/AchievementModal.tsx`, `src/app/dashboard/achievements/page.tsx`
+- **Descripción:** Implementada cola de modales premium con animaciones de `framer-motion`, efecto de glow, partículas flotantes y confetti para cada logro desbloqueado.
 
 ### 5. 🎮 Bonos de racha por consistencia
-- **Estado Actual:** El XP es por evento único. No hay memoria de rachas.
-- **Qué falta:** 
-  - Lógica en Supabase (o Server Action) que cuente días consecutivos de cumplimiento de metas (agua, calorías, entreno).
-  - Multiplicador de XP: Ejemplo, el día 7 de racha otorga un bono masivo de +500 XP.
-  - Notificación visual de racha activa en el Dashboard Home.
+- **Archivos:** `src/app/dashboard/home/page.tsx`, `src/app/dashboard/achievements/page.tsx`
+- **Descripción:** 
+  - Cálculo de racha basado en 90 días de actividad (gym, cardio, sueño, macros, agua).
+  - Banner de racha 🔥 en Home con barra de progreso y 4 hitos (3d, 7d, 14d, 30d).
+  - 4 nuevos logros de racha con bonos de hasta +2000 XP.
 
-### 6. 💎 Eliminar íconos planos (Audit General)
-- **Estado Actual:** Sidebar y botones de cierre usan `lucide-react` directamente.
-- **Qué falta:** 
-  - Auditar todos los archivos en `src/components/`.
-  - Reemplazar íconos planos por el wrapper `Icon3D` para mantener la estética coherente en toda la app.
+### 6. 💎 Audit de Iconos 3D (Estética Premium)
+- **Archivos:** `home/page.tsx`, `diet/page.tsx`, `settings/page.tsx`
+- **Descripción:** Reemplazo masivo de íconos planos de Lucide por el componente `Icon3D` con efectos de iluminación y sombras en KPI cards y headers de secciones.
 
-### 7. 💎 Micro-animaciones en modo focus
-- **Estado Actual:** El cambio de ejercicio es un salto directo o una transición básica.
-- **Qué falta:** 
-  - Implementar `AnimatePresence` de Framer Motion.
-  - Transiciones fluidas tipo "deslizar y escalar" entre sets y ejercicios para que se sienta como una app nativa nativa de iOS/Android.
+### 7. 💎 Micro-animaciones en Modo Focus
+- **Archivo:** `src/app/dashboard/gym/page.tsx`
+- **Descripción:** 
+  - Transiciones de ejercicios con `AnimatePresence` (Slide + Scale + Blur).
+  - Dots indicadores de progreso con glow cyan.
+  - Barra de progreso con spring animation.
+  - Feedback táctil premium (`whileHover`, `whileTap`) en toda la interfaz.
 
-### 8. 💰 Límite de mensajes (Modelo de Negocio)
-- **Estado Actual:** El agente responde sin límites.
-- **Qué falta:** 
-  - Columna `daily_messages_count` en la DB o cache en Redis/Cookie.
-  - Middleware o lógica en la API route del chat que verifique el plan del usuario.
-  - Componente de "Bloqueo" con CTA atractivo para suscribirse a Pro.
+### 8. 💰 Límite de mensajes IA (Modelo de Negocio)
+- **Archivos:** `src/app/api/agent/chat/route.ts`, `src/app/dashboard/agent/page.tsx`
+- **Descripción:** 
+  - Límite de 10 mensajes diarios para usuarios gratuitos (Backend check).
+  - Contador de mensajes en tiempo real en la UI.
+  - Paywall premium con corona dorada y botón de upgrade al alcanzar el límite.
 
-### 9. 💰 Stats Pro Exclusivos
-- **Estado Actual:** Todas las gráficas en `/dashboard/stats` son visibles.
-- **Qué falta:** 
-  - Identificar métricas avanzadas (comparativas mensuales, análisis de volumen total).
-  - Aplicar un "Overlay" de bloqueo (Blur) con el tag "PRO ONLY" para incentivar la conversión.
+### 9. 💰 Stats Pro Exclusivos (Conversión)
+- **Archivo:** `src/app/dashboard/stats/page.tsx`
+- **Descripción:** Agregadas secciones de Tendencia de Peso, Análisis IA de Sueño y Proyección de 6 meses bajo un overlay de "Blur Premium" con candados dorados para incentivar la suscripción PRO.
 
 ### 10. 🛠️ Fallback Groq (Onboarding)
-- **Estado Actual:** Si Groq falla en el primer paso, el usuario ve un perfil vacío.
-- **Qué falta:** 
-  - Un objeto JSON estático con un "Plan Base Estándar" (ej: 2000 kcal, rutina Full Body 3 días).
-  - Mecanismo de `try/catch` que asigne el plan base si la IA falla por timeout.
+- **Archivo:** `src/app/api/onboarding/route.ts`
+- **Descripción:** Implementado un "Plan Base Estándar" (PPG/Fullbody) que se inserta automáticamente si la IA de Groq falla por timeout, asegurando que el usuario nunca empiece con un dashboard vacío.
+
 
 ### 11. 🛠️ Sincronización dinámica de macros
-- **Estado Actual:** Los números en el Dashboard son estáticos basados en el perfil inicial.
-- **Qué falta:** 
-  - Vincular los valores `target_calories`, `target_protein`, etc. a una consulta dinámica.
-  - Si el agente cambia el plan (Mejora #2), el Dashboard debe refrescarse automáticamente con los nuevos objetivos.
+- **Archivos:** `src/app/dashboard/home/page.tsx`, `src/app/dashboard/diet/page.tsx`, `src/app/api/agent/chat/route.ts`, `supabase/migrations/004_dynamic_macros.sql`
+- **Descripción:** 
+  - Se agregaron las columnas `target_calories`, `target_protein`, `target_carbs`, `target_fat` a la tabla `users_profile` mediante una migración SQL.
+  - El agente IA cuenta ahora con una nueva herramienta `update_macros` que utiliza para grabar ajustes generales de la dieta directamente en el perfil del usuario (bulk, cut, mantenimiento).
+  - Los widgets del Dashboard (Home y Dieta) leen estos valores dinámicos si existen, caso contrario calculan usando la formula estática de "maintenance TDEE". Esto garantiza una sincronización perfecta y sin fricción entre la IA y la UI.
+
+## 📝 Pendientes
+
+### 🎉 ¡PROYECTO FINALIZADO!
+- **Estado Actual:** Todas las tareas designadas se han implementado con éxito. FORJA Fitness SaaS ahora posee gamificación refinada, estética premium consistente, inteligencia conversacional segura con fallbacks y memorias persistentes aplicadas dinámicamente sobre la UI.

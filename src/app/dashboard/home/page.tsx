@@ -36,12 +36,16 @@ export default function DashboardHome() {
       setProfile(pData);
 
       if (pData) {
-        const weight = pData.weight_kg || 70;
-        const intensityMult = pData.intensity === "alta" ? 1.6 : pData.intensity === "media" ? 1.4 : 1.2;
-        let cals = Math.round(weight * 22 * intensityMult);
-        if (pData.goal === "cut") cals -= 500;
-        if (pData.goal === "bulk") cals += 300;
-        setTargetCals(cals);
+        if (pData.target_calories) {
+          setTargetCals(pData.target_calories);
+        } else {
+          const weight = pData.weight_kg || 70;
+          const intensityMult = pData.intensity === "alta" ? 1.6 : pData.intensity === "media" ? 1.4 : 1.2;
+          let cals = Math.round(weight * 22 * intensityMult);
+          if (pData.goal === "cut") cals -= 500;
+          if (pData.goal === "bulk") cals += 300;
+          setTargetCals(cals);
+        }
       }
 
       const today = new Date().toISOString().split('T')[0];

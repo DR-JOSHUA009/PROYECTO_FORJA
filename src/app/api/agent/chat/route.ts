@@ -95,6 +95,7 @@ export async function POST(req: Request) {
       4. Sé conciso, motivador y personalizado. Usa los datos del perfil y la MEMORIA PERSISTENTE para dar consejos relevantes sin pedir información que ya conoces.
       5. Responde siempre en español.
       6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
+      7. Al proponer cambios generales en los requerimientos calóricos diarios (bulk, cut, mantenimiento), usa la herramienta update_macros para registrar los nuevos valores en el perfil del usuario de forma transparente y sin requerir la confirmación (se aplica directo).
     `;
 
     const groqMessages = [
@@ -147,6 +148,23 @@ export async function POST(req: Request) {
               }
             },
             required: ["meal_type", "foods"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "update_macros",
+          description: "Actualiza los objetivos nutricionales y macronutrientes generales en el perfil del usuario. Se aplica directamente.",
+          parameters: {
+            type: "object",
+            properties: {
+              target_calories: { type: "number", description: "Nuevo objetivo calórico diario" },
+              target_protein: { type: "number", description: "Nuevo objetivo de proteína (g)" },
+              target_carbs: { type: "number", description: "Nuevo objetivo de carbohidratos (g)" },
+              target_fat: { type: "number", description: "Nuevo objetivo de grasas (g)" }
+            },
+            required: ["target_calories", "target_protein", "target_carbs", "target_fat"]
           }
         }
       },
@@ -277,6 +295,16 @@ export async function POST(req: Request) {
                 const { data: before } = await supabase.from("diet_plans").select("foods").eq("user_id", user.id).eq("meal_type", args.meal_type).single();
                 metadata = { act_type: "confirmation_request", tool: "diet", meal_type: args.meal_type, before: before?.foods || [], after: args.foods };
                 confirmText = `\n\n🍎 He preparado una optimización para tu **${args.meal_type}**. Revisa el desglose a continuación.`;
+              }
+              // --- TOOL: update_macros (directo) ---
+              else if (tool.name === "update_macros") {
+                await supabase.from("users_profile").update({
+                  target_calories: args.target_calories,
+                  target_protein: args.target_protein,
+                  target_carbs: args.target_carbs,
+                  target_fat: args.target_fat
+                }).eq("user_id", user.id);
+                confirmText = `\n\n🎯 He actualizado tus objetivos de macros diarios a: **${args.target_calories}kcal** (${args.target_protein}g P / ${args.target_carbs}g C / ${args.target_fat}g G).`;
               }
               // --- TOOL: log_activity (agua - directo) ---
               else if (tool.name === "log_activity") {

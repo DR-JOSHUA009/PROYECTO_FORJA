@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, Calendar, Target, Award, Activity, Heart, Clock, Flame, Droplet, Moon, Dumbbell } from "lucide-react";
+import { BarChart3, TrendingUp, Calendar, Target, Award, Activity, Heart, Clock, Flame, Droplet, Moon, Dumbbell, Crown, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon3D } from "@/components/ui/Icon3D";
@@ -268,6 +268,116 @@ export default function StatsPage() {
               return streak;
             })()} días
           </span>
+        </div>
+      </div>
+
+      {/* ===== PRO EXCLUSIVE SECTIONS ===== */}
+      <div className="mt-8 flex flex-col gap-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-px flex-1 bg-white/10" />
+          <span className="text-[10px] font-mono text-yellow-400 uppercase tracking-[0.3em] font-bold flex items-center gap-2">
+            <Crown className="w-3 h-3" /> Estadísticas PRO
+          </span>
+          <div className="h-px flex-1 bg-white/10" />
+        </div>
+
+        {/* PRO SECTION 1: Tendencia de Peso */}
+        <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
+          <div className="p-8 filter blur-[6px] select-none pointer-events-none">
+            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Tendencia de Peso (30 días)</h2>
+            <p className="text-text-secondary text-sm mb-8">Evolución de tu peso corporal con predicción de IA.</p>
+            <div className="flex items-end justify-between gap-2 h-[200px]">
+              {[78, 77.5, 77.8, 77.2, 76.9, 76.5, 76.8, 76.2, 75.9, 75.5, 75.8, 75.2, 74.9, 74.5].map((val, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <div className="w-full bg-primary/30 rounded-t-lg" style={{ height: `${((val - 73) / 6) * 100}%` }} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 grid grid-cols-3 gap-4">
+              <div className="p-4 bg-white/5 rounded-xl"><span className="text-xl font-bold text-white">-3.1 kg</span><br/><span className="text-xs text-text-muted">Cambio total</span></div>
+              <div className="p-4 bg-white/5 rounded-xl"><span className="text-xl font-bold text-white">74.5 kg</span><br/><span className="text-xs text-text-muted">Peso actual</span></div>
+              <div className="p-4 bg-white/5 rounded-xl"><span className="text-xl font-bold text-primary">72 kg</span><br/><span className="text-xs text-text-muted">Meta estimada</span></div>
+            </div>
+          </div>
+          {/* PRO Overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+              <Lock className="w-7 h-7 text-yellow-400" />
+            </div>
+            <span className="text-sm font-black text-white mb-1">Tendencia de Peso</span>
+            <span className="text-xs text-text-secondary mb-4">Seguimiento inteligente de tu peso con predicciones IA</span>
+            <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+              Desbloquear con PRO
+            </button>
+          </div>
+        </div>
+
+        {/* PRO SECTION 2: Análisis de Sueño IA */}
+        <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
+          <div className="p-8 filter blur-[6px] select-none pointer-events-none">
+            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Análisis de Sueño Inteligente</h2>
+            <p className="text-text-secondary text-sm mb-6">Patrones de sueño analizados por inteligencia artificial.</p>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: Moon, label: "Hora Óptima", val: "22:30 - 06:30" },
+                { icon: TrendingUp, label: "Calidad Promedio", val: "8.2 / 10" },
+                { icon: Heart, label: "Correlación Entreno", val: "+23% calidad" },
+                { icon: Calendar, label: "Mejor Día", val: "Domingo" },
+              ].map((item, i) => (
+                <div key={i} className="p-5 bg-white/5 rounded-2xl border border-white/5">
+                  <item.icon className="w-5 h-5 text-blue-400 mb-2" />
+                  <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono block">{item.label}</span>
+                  <span className="text-lg font-bold text-white">{item.val}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 p-5 bg-blue-500/5 rounded-2xl border border-blue-500/10">
+              <p className="text-sm text-white"><span className="text-blue-400 font-bold">Insight IA:</span> Tu recuperación mejora un 23% los días que entrenas antes de las 18:00. Recomendación: mantén tus entrenos en horario matutino para optimizar el ciclo REM.</p>
+            </div>
+          </div>
+          {/* PRO Overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+              <Lock className="w-7 h-7 text-yellow-400" />
+            </div>
+            <span className="text-sm font-black text-white mb-1">Análisis IA de Sueño</span>
+            <span className="text-xs text-text-secondary mb-4">Insights avanzados sobre tus patrones de recuperación</span>
+            <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+              Desbloquear con PRO
+            </button>
+          </div>
+        </div>
+
+        {/* PRO SECTION 3: Proyección de Progreso */}
+        <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
+          <div className="p-8 filter blur-[6px] select-none pointer-events-none">
+            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Proyección de Progreso (6 meses)</h2>
+            <p className="text-text-secondary text-sm mb-8">Predicción basada en tu ritmo actual de entrenamiento.</p>
+            <div className="flex items-end justify-between gap-1 h-[180px]">
+              {[20, 28, 35, 42, 48, 55, 60, 65, 72, 78, 82, 85, 88, 90, 93, 95, 97, 98, 99, 100].map((val, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <div className={`w-full rounded-t-lg ${i < 8 ? 'bg-white/20' : 'bg-primary/30 border-t border-primary/50'}`} style={{ height: `${val}%` }} />
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 grid grid-cols-4 gap-4">
+              <div className="p-3 bg-white/5 rounded-xl text-center"><span className="text-lg font-bold text-white">85%</span><br/><span className="text-[9px] text-text-muted">Fuerza</span></div>
+              <div className="p-3 bg-white/5 rounded-xl text-center"><span className="text-lg font-bold text-primary">92%</span><br/><span className="text-[9px] text-text-muted">Resistencia</span></div>
+              <div className="p-3 bg-white/5 rounded-xl text-center"><span className="text-lg font-bold text-white">78%</span><br/><span className="text-[9px] text-text-muted">Flexibilidad</span></div>
+              <div className="p-3 bg-white/5 rounded-xl text-center"><span className="text-lg font-bold text-orange-400">88%</span><br/><span className="text-[9px] text-text-muted">Consistencia</span></div>
+            </div>
+          </div>
+          {/* PRO Overlay */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/40 backdrop-blur-sm">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+              <Lock className="w-7 h-7 text-yellow-400" />
+            </div>
+            <span className="text-sm font-black text-white mb-1">Proyección de Progreso</span>
+            <span className="text-xs text-text-secondary mb-4">Ve dónde estarás en 6 meses según tu rendimiento actual</span>
+            <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+              Desbloquear con PRO
+            </button>
+          </div>
         </div>
       </div>
     </div>
