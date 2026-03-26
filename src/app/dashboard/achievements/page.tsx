@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon3D } from "@/components/ui/Icon3D";
 import { useToast } from "@/components/ui/Toast";
+import { AchievementModal } from "@/components/ui/AchievementModal";
 
 // Definición de logros con condiciones de desbloqueo
 const ACHIEVEMENTS_DEF = [
@@ -28,8 +29,22 @@ export default function AchievementsPage() {
   const [profile, setProfile] = useState<any>(null);
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [newlyUnlocked, setNewlyUnlocked] = useState<string[]>([]);
+  const [modalQueue, setModalQueue] = useState<any[]>([]);
+  const [modalAchievement, setModalAchievement] = useState<any>(null);
   const { toast } = useToast();
   const supabase = createClient();
+
+  // Cuando la cola tiene elementos y no hay modal activo, muestra el siguiente
+  useEffect(() => {
+    if (modalQueue.length > 0 && !modalAchievement) {
+      // Pequeño delay para que la animación de salida del anterior termine
+      const timer = setTimeout(() => {
+        setModalAchievement(modalQueue[0]);
+        setModalQueue(prev => prev.slice(1));
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [modalQueue, modalAchievement]);
 
   useEffect(() => {
     async function loadAndCheck() {
@@ -125,8 +140,12 @@ export default function AchievementsPage() {
         }
 
         setNewlyUnlocked(toUnlock);
-        const names = toUnlock.map(k => ACHIEVEMENTS_DEF.find(a => a.key === k)?.name).filter(Boolean);
-        toast(`🏆 ¡Nuevo logro desbloqueado! ${names.join(", ")} (+${bonusXp} XP)`, "success");
+
+        // Construir la cola del modal con los datos completos de cada logro
+        const queueItems = toUnlock
+          .map(k => ACHIEVEMENTS_DEF.find(a => a.key === k))
+          .filter(Boolean);
+        setModalQueue(queueItems);
       }
 
       setUnlocked([...existingKeys, ...toUnlock]);
@@ -229,6 +248,11 @@ export default function AchievementsPage() {
           );
         })}
       </div>
+
+      <AchievementModal 
+        achievement={modalAchievement} 
+        onClose={() => setModalAchievement(null)} 
+      />
     </div>
   );
 }
