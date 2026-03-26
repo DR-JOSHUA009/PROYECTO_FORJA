@@ -192,7 +192,7 @@ export default function DietModule() {
       <header className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            Nutrición <Apple className="text-emerald-400 w-6 h-6 icon-3d" />
+            Nutrición <Icon3D icon={Apple} color="#10b981" size={28} />
           </h1>
           <p className="text-text-secondary">Fase nutricional actual: <span className="text-white font-mono uppercase tracking-widest text-xs">{profile?.goal || "Mantenimiento"}</span></p>
         </div>
@@ -228,7 +228,7 @@ export default function DietModule() {
       {/* MACRO SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="md:col-span-1 glass p-6 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
-          <Flame className="w-8 h-8 text-orange-400 mb-2 opacity-80 icon-3d" />
+          <Icon3D icon={Flame} color="#fb923c" size={32} className="mb-2" />
           <span className="text-3xl font-bold text-white tracking-tight">{ingestedCals}</span>
           <span className="text-xs text-text-muted uppercase tracking-widest mt-1">/ {targetCals} KCALS</span>
           <div className="w-full h-1 bg-white/5 mt-4 rounded-full overflow-hidden">
@@ -355,7 +355,7 @@ export default function DietModule() {
       <div className="glass p-8 rounded-2xl border border-white/5 flex flex-col md:flex-row items-center gap-10 mt-12 mb-12">
         <div className="flex flex-col gap-2 flex-1 text-center md:text-left">
           <h2 className="text-xl font-bold text-white flex items-center justify-center md:justify-start gap-2">
-            Hidratación Diaria <Droplet className="text-blue-400 w-5 h-5 shadow-[0_0_10px_rgba(96,165,250,0.5)]" />
+            Hidratación Diaria <Icon3D icon={Droplet} color="#60a5fa" size={22} />
           </h2>
           <p className="text-text-secondary text-sm max-w-md">
             Tu meta calculada es de <span className="text-white font-bold">{Math.round(weight * 35)}ml</span> diarios. Beber agua suficiente optimiza tu recuperación y quema calórica.

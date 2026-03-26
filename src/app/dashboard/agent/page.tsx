@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Sparkles, ExternalLink, Check, X, ArrowRight } from "lucide-react";
+import { Send, Bot, User, Sparkles, ExternalLink, Check, X, ArrowRight, Lock, Crown, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/Toast";
@@ -76,6 +76,9 @@ function ChatContent() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [limitReached, setLimitReached] = useState(false);
+  const [dailyCount, setDailyCount] = useState(0);
+  const FREE_LIMIT = 10;
   
   const bottomRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
@@ -104,6 +107,21 @@ function ChatContent() {
       setLoadingHistory(false);
     }
     loadHistory();
+
+    // Cargar conteo diario de mensajes
+    async function loadDailyCount() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { count } = await supabase
+        .from("agent_conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("role", "user")
+        .gte("created_at", `${todayStr}T00:00:00.000Z`);
+      setDailyCount(count || 0);
+    }
+    loadDailyCount();
   }, [supabase]);
 
   const streamMessage = async (msgs: any[]) => {
@@ -115,6 +133,13 @@ function ChatContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: msgs })
       });
+
+      if (response.status === 429) {
+        const errorData = await response.json();
+        setLimitReached(true);
+        setDailyCount(errorData.used || FREE_LIMIT);
+        return;
+      }
 
       if (!response.ok) throw new Error("Error en la conexión");
 
@@ -208,6 +233,7 @@ function ChatContent() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
+    setDailyCount(prev => prev + 1);
     streamMessage(newMessages.slice(-10));
   };
 
@@ -226,6 +252,11 @@ function ChatContent() {
         <div className="flex items-center gap-2">
            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse" />
            <span className="text-[10px] text-emerald-500 font-mono font-bold tracking-widest">STREAM ACTIVE</span>
+           {!limitReached && (
+             <span className="text-[9px] font-mono text-text-muted ml-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+               {Math.max(FREE_LIMIT - dailyCount, 0)}/{FREE_LIMIT}
+             </span>
+           )}
         </div>
       </header>
 
@@ -279,21 +310,74 @@ function ChatContent() {
         <div ref={bottomRef} className="h-4 bg-transparent" />
       </div>
 
-      <div className="fixed bottom-[80px] md:bottom-6 left-0 right-0 p-4 md:p-0 z-40 bg-gradient-to-t from-[#050505] to-transparent">
-        <form onSubmit={handleSend} className="relative max-w-4xl mx-auto w-full group">
-          <input 
-            type="text" 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isTyping}
-            placeholder="Ej: Ajusta mi rutina de mañana..."
-            className="w-full h-16 bg-[#0a0a0a] border border-white/10 focus:border-white/40 focus:bg-white/5 rounded-3xl px-8 pr-16 text-white outline-none transition-all placeholder:text-text-muted disabled:opacity-50 text-sm shadow-2xl"
-          />
-          <button type="submit" disabled={!input.trim() || isTyping} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl">
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
-      </div>
+      {/* INPUT AREA OR LIMIT BLOCK */}
+      {limitReached ? (
+        <div className="fixed bottom-[80px] md:bottom-6 left-0 right-0 p-4 md:p-0 z-40">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto w-full"
+          >
+            <div className="glass rounded-3xl border border-yellow-500/20 p-8 text-center relative overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-48 h-48 bg-yellow-500/5 rounded-full blur-[80px]" />
+              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/5 rounded-full blur-[60px]" />
+              
+              <motion.div
+                animate={{ rotate: [0, 5, -5, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="inline-block mb-4"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mx-auto">
+                  <Crown className="w-8 h-8 text-yellow-400" />
+                </div>
+              </motion.div>
+              
+              <h3 className="text-xl font-black text-white mb-2">Límite Diario Alcanzado</h3>
+              <p className="text-sm text-text-secondary mb-6 max-w-md mx-auto">
+                Has usado tus <span className="text-white font-bold">{FREE_LIMIT} mensajes</span> gratuitos de hoy.
+                Actualiza a <span className="text-yellow-400 font-bold">FORJA PRO</span> para conversaciones ilimitadas.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-6">
+                {[
+                  { icon: Zap, text: "Mensajes ilimitados" },
+                  { icon: Sparkles, text: "Modelos IA avanzados" },
+                  { icon: Lock, text: "Stats Pro exclusivos" },
+                ].map((feat, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[11px] text-text-secondary bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <feat.icon className="w-3 h-3 text-yellow-400" />
+                    {feat.text}
+                  </div>
+                ))}
+              </div>
+
+              <button className="h-14 px-10 rounded-2xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-sm uppercase tracking-widest shadow-[0_0_30px_rgba(234,179,8,0.3)] hover:scale-105 active:scale-95 transition-all">
+                Activar FORJA PRO
+              </button>
+              
+              <p className="text-[10px] text-text-muted mt-4 font-mono uppercase tracking-widest">
+                Tus mensajes se restauran a medianoche
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      ) : (
+        <div className="fixed bottom-[80px] md:bottom-6 left-0 right-0 p-4 md:p-0 z-40 bg-linear-to-t from-[#050505] to-transparent">
+          <form onSubmit={handleSend} className="relative max-w-4xl mx-auto w-full group">
+            <input 
+              type="text" 
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isTyping}
+              placeholder="Ej: Ajusta mi rutina de mañana..."
+              className="w-full h-16 bg-[#0a0a0a] border border-white/10 focus:border-white/40 focus:bg-white/5 rounded-3xl px-8 pr-16 text-white outline-none transition-all placeholder:text-text-muted disabled:opacity-50 text-sm shadow-2xl"
+            />
+            <button type="submit" disabled={!input.trim() || isTyping} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl">
+              <Send className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

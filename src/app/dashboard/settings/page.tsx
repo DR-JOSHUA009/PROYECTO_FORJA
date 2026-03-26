@@ -5,6 +5,7 @@ import { Settings, Shield, Bell, CreditCard, ChevronRight, LogOut } from "lucide
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { Icon3D } from "@/components/ui/Icon3D";
 
 export default function SettingsModule() {
   const [userEmail, setUserEmail] = useState<string>("Cargando...");
@@ -28,7 +29,7 @@ export default function SettingsModule() {
     <div className="p-6 md:p-10 max-w-4xl mx-auto w-full">
       <header className="mb-10">
         <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-          Configuración <Settings className="text-text-muted w-6 h-6" />
+          Configuración <Icon3D icon={Settings} color="#ffffff" size={28} />
         </h1>
         <p className="text-text-secondary">Configuración del sistema y preferencias de la cuenta.</p>
       </header>
@@ -39,7 +40,7 @@ export default function SettingsModule() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
           <div className="p-4 border-b border-white/5 bg-white/2">
             <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary" /> Cuenta
+              <Icon3D icon={Shield} color="#09fad3" size={18} /> Cuenta
             </h2>
           </div>
           <div className="p-2 flex flex-col">
@@ -63,7 +64,7 @@ export default function SettingsModule() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl border border-white/5 overflow-hidden">
           <div className="p-4 border-b border-white/5 bg-white/2">
             <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-white" /> Suscripción
+              <Icon3D icon={CreditCard} color="#ffffff" size={18} /> Suscripción
             </h2>
           </div>
           <div className="p-6 flex justify-between items-center">

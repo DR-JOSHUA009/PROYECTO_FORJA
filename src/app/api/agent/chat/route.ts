@@ -9,8 +9,35 @@ export async function POST(req: Request) {
 
     if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const { messages } = await req.json();
+    // ──── LÍMITE DIARIO DE MENSAJES ────────────────────────────────
+    const FREE_DAILY_LIMIT = 10;
+    const today = new Date().toISOString().split('T')[0];
+
     const { data: profile } = await supabase.from("users_profile").select("*").eq("user_id", user.id).single();
+    const userPlan = (profile as any)?.plan || "free";
+
+    if (userPlan !== "pro") {
+      const { count } = await supabase
+        .from("agent_conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("role", "user")
+        .gte("created_at", `${today}T00:00:00.000Z`);
+
+      const todayCount = count || 0;
+
+      if (todayCount >= FREE_DAILY_LIMIT) {
+        return NextResponse.json({
+          error: "daily_limit_reached",
+          message: `Has alcanzado el límite de ${FREE_DAILY_LIMIT} mensajes diarios del plan gratuito.`,
+          limit: FREE_DAILY_LIMIT,
+          used: todayCount,
+          remaining: 0,
+        }, { status: 429 });
+      }
+    }
+
+    const { messages } = await req.json();
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
 

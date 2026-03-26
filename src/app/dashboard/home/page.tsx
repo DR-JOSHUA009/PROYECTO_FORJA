@@ -7,6 +7,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import WaterVessel from "@/components/dashboard/WaterVessel";
 import { useToast } from "@/components/ui/Toast";
+import { Icon3D } from "@/components/ui/Icon3D";
 
 export default function DashboardHome() {
   const { toast } = useToast();
@@ -252,17 +253,17 @@ export default function DashboardHome() {
       {/* KPI ROW */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
-          { icon: Flame, title: "Calorías Obj.", value: targetCals, sub: "kcal/día", color: "text-orange-400" },
-          { icon: Dumbbell, title: "Entrenos/Sem.", value: `${weekWorkouts}/${profile?.training_days || 5}`, sub: "completados", color: "text-white" },
-          { icon: Moon, title: "Sueño", value: lastSleep ? `${Number(lastSleep.hours_slept).toFixed(1)}h` : "—", sub: "anoche", color: "text-blue-400" },
-          { icon: Activity, title: "Cardio", value: lastCardio ? `${lastCardio.duration_min}min` : "—", sub: lastCardio?.activity || "sin registro", color: "text-cyan-400" },
+          { icon: Flame, title: "Calorías Obj.", value: targetCals, sub: "kcal/día", color: "#fb923c" },
+          { icon: Dumbbell, title: "Entrenos/Sem.", value: `${weekWorkouts}/${profile?.training_days || 5}`, sub: "completados", color: "#ffffff" },
+          { icon: Moon, title: "Sueño", value: lastSleep ? `${Number(lastSleep.hours_slept).toFixed(1)}h` : "—", sub: "anoche", color: "#60a5fa" },
+          { icon: Activity, title: "Cardio", value: lastCardio ? `${lastCardio.duration_min}min` : "—", sub: lastCardio?.activity || "sin registro", color: "#22d3ee" },
         ].map((w, i) => (
           <motion.div
             key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
             className="glass p-5 rounded-2xl border border-white/5 hover:border-white/15 transition-all"
           >
             <div className="flex items-center gap-2 mb-3">
-              <w.icon className={`w-4 h-4 ${w.color}`} />
+              <Icon3D icon={w.icon} color={w.color} size={18} />
               <span className="text-[10px] text-text-secondary uppercase tracking-widest font-mono">{w.title}</span>
             </div>
             <span className="text-2xl font-bold text-white block">{w.value}</span>
@@ -373,10 +374,10 @@ export default function DashboardHome() {
       {/* ACCESOS RÁPIDOS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Agente IA", icon: Bot, href: "/dashboard/agent", color: "text-primary" },
-          { label: "Logros", icon: Trophy, href: "/dashboard/achievements", color: "text-yellow-400" },
-          { label: "Estadísticas", icon: TrendingUp, href: "/dashboard/stats", color: "text-white" },
-          { label: "Cardio", icon: Zap, href: "/dashboard/cardio", color: "text-cyan-400" },
+          { label: "Agente IA", icon: Bot, href: "/dashboard/agent", color: "#09fad3" },
+          { label: "Logros", icon: Trophy, href: "/dashboard/achievements", color: "#facc15" },
+          { label: "Estadísticas", icon: TrendingUp, href: "/dashboard/stats", color: "#ffffff" },
+          { label: "Cardio", icon: Zap, href: "/dashboard/cardio", color: "#22d3ee" },
         ].map((link, i) => (
           <Link key={i} href={link.href}>
             <motion.div
@@ -384,7 +385,7 @@ export default function DashboardHome() {
               className="glass p-5 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-white/20 transition-all cursor-pointer active:scale-95"
             >
               <div className="flex items-center gap-3">
-                <link.icon className={`w-5 h-5 ${link.color}`} />
+                <Icon3D icon={link.icon} color={link.color} size={22} />
                 <span className="text-sm font-medium text-white">{link.label}</span>
               </div>
               <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-white group-hover:translate-x-1 transition-all" />
