@@ -20,6 +20,7 @@ export default function DashboardHome() {
   const [lastSleep, setLastSleep] = useState<any>(null);
   const [lastCardio, setLastCardio] = useState<any>(null);
   const [weekWorkouts, setWeekWorkouts] = useState(0);
+  const [streak, setStreak] = useState(0);
 
   const supabase = createClient();
 
@@ -74,6 +75,35 @@ export default function DashboardHome() {
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       const { data: wkData } = await supabase.from("workout_logs").select("id").eq("user_id", user.id).gte("created_at", weekAgo.toISOString());
       setWeekWorkouts(wkData?.length || 0);
+
+      // ──── CÁLCULO DE RACHA ────────────────────────────────────────
+      const [streakWorkouts, streakCardio, streakSleep, streakFood, streakWater] = await Promise.all([
+        supabase.from("workout_logs").select("created_at").eq("user_id", user.id),
+        supabase.from("cardio_sessions").select("date").eq("user_id", user.id),
+        supabase.from("sleep_logs").select("date").eq("user_id", user.id),
+        supabase.from("food_logs").select("date").eq("user_id", user.id),
+        supabase.from("water_logs").select("date").eq("user_id", user.id),
+      ]);
+      const activeDates = new Set<string>();
+      streakWorkouts.data?.forEach(w => { if (w.created_at) activeDates.add(w.created_at.split('T')[0]); });
+      streakCardio.data?.forEach(c => { if (c.date) activeDates.add(c.date); });
+      streakSleep.data?.forEach(s => { if (s.date) activeDates.add(s.date); });
+      streakFood.data?.forEach(f => { if (f.date) activeDates.add(f.date); });
+      streakWater.data?.forEach(w => { if (w.date) activeDates.add(w.date); });
+
+      let calculatedStreak = 0;
+      for (let i = 0; i < 90; i++) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const dStr = d.toISOString().split('T')[0];
+        if (activeDates.has(dStr)) {
+          calculatedStreak++;
+        } else if (i === 0) {
+          continue; // hoy aún no registra, no rompe racha
+        } else {
+          break;
+        }
+      }
+      setStreak(calculatedStreak);
 
       setLoading(false);
     }
@@ -149,6 +179,75 @@ export default function DashboardHome() {
           <motion.div initial={{ width: 0 }} animate={{ width: `${xpInLevel / 10}%` }} className="h-full bg-primary rounded-full shadow-[0_0_10px_rgba(9,250,211,0.3)]" />
         </div>
       </div>
+
+      {/* STREAK BANNER */}
+      {streak > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 glass p-6 rounded-2xl border border-orange-500/20 bg-linear-to-r from-orange-500/5 to-red-500/5 relative overflow-hidden"
+        >
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="text-4xl"
+              >
+                🔥
+              </motion.div>
+              <div>
+                <span className="text-[10px] text-orange-400 uppercase tracking-widest font-mono font-bold block">Racha Activa</span>
+                <span className="text-3xl font-black text-white">{streak} <span className="text-base font-medium text-text-secondary">días</span></span>
+              </div>
+            </div>
+            <div className="hidden md:flex items-center gap-3">
+              {[
+                { d: 3, label: "3d", bonus: "+100 XP" },
+                { d: 7, label: "7d", bonus: "+500 XP" },
+                { d: 14, label: "14d", bonus: "+1K XP" },
+                { d: 30, label: "30d", bonus: "+2K XP" },
+              ].map((m) => (
+                <div key={m.d} className={`flex flex-col items-center gap-1 transition-all ${streak >= m.d ? "opacity-100" : "opacity-30"}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border ${
+                    streak >= m.d
+                      ? "bg-orange-500/20 border-orange-500/40 text-orange-400"
+                      : "bg-white/5 border-white/10 text-white/30"
+                  }`}>
+                    {streak >= m.d ? "✓" : m.label}
+                  </div>
+                  <span className="text-[8px] font-mono text-text-muted whitespace-nowrap">{m.bonus}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Progress to next milestone */}
+          {(() => {
+            const milestones = [3, 7, 14, 30];
+            const next = milestones.find(m => m > streak);
+            if (!next) return (
+              <div className="mt-4 text-center">
+                <span className="text-[10px] font-mono text-orange-400 uppercase tracking-widest">🏆 Todos los bonos de racha desbloqueados</span>
+              </div>
+            );
+            const prev = milestones[milestones.indexOf(next) - 1] || 0;
+            const progress = ((streak - prev) / (next - prev)) * 100;
+            return (
+              <div className="mt-4 flex items-center gap-3">
+                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    className="h-full bg-linear-to-r from-orange-500 to-red-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.3)]"
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-text-muted whitespace-nowrap">{streak}/{next} para bono</span>
+              </div>
+            );
+          })()}
+        </motion.div>
+      )}
 
       {/* KPI ROW */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

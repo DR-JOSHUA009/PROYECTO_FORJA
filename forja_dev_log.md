@@ -22,16 +22,18 @@ Este archivo registra las mejoras aplicadas por Antigravity en la sesión del 25
   1. El agente carga memorias al inicio e inyecta en el prompt.
   2. Al finalizar la charla, una función `extractAndSaveMemories` extrae hechos nuevos automáticamente en background.
 
----
-
-## 📝 Análisis de Pendientes (Detallado)
-
 ### 4. 🎮 Animación de desbloqueo de logros
 - **Estado Actual:** Existe la tabla `achievements` y se guardan los datos, pero la UI es estática.
 - **Qué falta:** 
   - Detectar el momento exacto de la inserción en Supabase (probablemente vía Realtime o retorno de la API).
   - Implementar un **Modal de Celebración** con `framer-motion` o `canvas-confetti`.
   - Efectos visuales de "Glow" y sonido sutil de éxito para una experiencia Premium.
+
+
+
+## 📝 Análisis de Pendientes (Detallado)
+
+
 
 ### 5. 🎮 Bonos de racha por consistencia
 - **Estado Actual:** El XP es por evento único. No hay memoria de rachas.

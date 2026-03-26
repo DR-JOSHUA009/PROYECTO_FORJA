@@ -104,7 +104,128 @@ export async function POST(req: Request) {
       }
 
     } catch (llmError) {
-      console.warn("Fallo el LLM, guardaremos datos por defecto", llmError);
+      console.warn("Fallo el LLM, aplicando Plan Base Estándar", llmError);
+
+      // ──── PLAN BASE ESTÁNDAR (Fallback) ────────────────────────────
+      const trainingDays = payload.dias || 3;
+      const isGym = payload.equipo !== "casa";
+
+      const gymExercises: Record<string, { name: string; sets: string; reps: string }[]> = {
+        "Push": [
+          { name: "Press Banca", sets: "4", reps: "8-10" },
+          { name: "Press Inclinado Mancuernas", sets: "3", reps: "10-12" },
+          { name: "Aperturas", sets: "3", reps: "12-15" },
+          { name: "Press Militar", sets: "3", reps: "10-12" },
+          { name: "Elevaciones Laterales", sets: "3", reps: "15" },
+        ],
+        "Pull": [
+          { name: "Jalón al Pecho", sets: "4", reps: "8-10" },
+          { name: "Remo con Barra", sets: "3", reps: "10-12" },
+          { name: "Remo en Polea", sets: "3", reps: "12" },
+          { name: "Curl Bíceps Barra", sets: "3", reps: "10-12" },
+          { name: "Face Pulls", sets: "3", reps: "15" },
+        ],
+        "Legs": [
+          { name: "Sentadillas", sets: "4", reps: "8-10" },
+          { name: "Prensa de Piernas", sets: "3", reps: "10-12" },
+          { name: "Peso Muerto Rumano", sets: "3", reps: "10-12" },
+          { name: "Extensiones de Cuádriceps", sets: "3", reps: "12-15" },
+          { name: "Curl Femoral", sets: "3", reps: "12-15" },
+        ],
+        "FullBody": [
+          { name: "Sentadillas", sets: "3", reps: "10" },
+          { name: "Press Banca", sets: "3", reps: "10" },
+          { name: "Remo con Barra", sets: "3", reps: "10" },
+          { name: "Press Militar", sets: "3", reps: "10" },
+          { name: "Curl Bíceps", sets: "2", reps: "12" },
+        ],
+      };
+
+      const homeExercises: Record<string, { name: string; sets: string; reps: string }[]> = {
+        "Push": [
+          { name: "Flexiones", sets: "4", reps: "15-20" },
+          { name: "Flexiones Diamante", sets: "3", reps: "10-12" },
+          { name: "Dips en Silla", sets: "3", reps: "12-15" },
+          { name: "Pike Push-ups", sets: "3", reps: "10-12" },
+          { name: "Plancha", sets: "3", reps: "30-45seg" },
+        ],
+        "Pull": [
+          { name: "Dominadas (o Australianas)", sets: "4", reps: "8-10" },
+          { name: "Remo Invertido", sets: "3", reps: "10-12" },
+          { name: "Superman Hold", sets: "3", reps: "12-15" },
+          { name: "Curl Bíceps (Banda/Mancuerna)", sets: "3", reps: "12" },
+          { name: "Face Pulls con Banda", sets: "3", reps: "15" },
+        ],
+        "Legs": [
+          { name: "Sentadillas Búlgaras", sets: "4", reps: "10 c/lado" },
+          { name: "Sentadillas Jump", sets: "3", reps: "12" },
+          { name: "Lunges", sets: "3", reps: "12 c/lado" },
+          { name: "Puente de Glúteos", sets: "3", reps: "15" },
+          { name: "Elevaciones de Pantorrilla", sets: "3", reps: "20" },
+        ],
+        "FullBody": [
+          { name: "Burpees", sets: "3", reps: "10" },
+          { name: "Flexiones", sets: "3", reps: "15" },
+          { name: "Sentadillas", sets: "3", reps: "15" },
+          { name: "Plancha", sets: "3", reps: "45seg" },
+          { name: "Mountain Climbers", sets: "3", reps: "20" },
+        ],
+      };
+
+      const exerciseBank = isGym ? gymExercises : homeExercises;
+      const allDays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+      // Build training schedule based on number of days
+      let schedule: { day: string; type: string }[];
+      if (trainingDays >= 6) {
+        schedule = [
+          { day: "Lunes", type: "Push" }, { day: "Martes", type: "Pull" }, { day: "Miércoles", type: "Legs" },
+          { day: "Jueves", type: "Push" }, { day: "Viernes", type: "Pull" }, { day: "Sábado", type: "Legs" },
+        ];
+      } else if (trainingDays >= 5) {
+        schedule = [
+          { day: "Lunes", type: "Push" }, { day: "Martes", type: "Pull" }, { day: "Miércoles", type: "Legs" },
+          { day: "Jueves", type: "Push" }, { day: "Viernes", type: "Pull" },
+        ];
+      } else if (trainingDays >= 4) {
+        schedule = [
+          { day: "Lunes", type: "Push" }, { day: "Martes", type: "Pull" },
+          { day: "Jueves", type: "Legs" }, { day: "Viernes", type: "FullBody" },
+        ];
+      } else {
+        schedule = [
+          { day: "Lunes", type: "FullBody" }, { day: "Miércoles", type: "FullBody" }, { day: "Viernes", type: "FullBody" },
+        ];
+      }
+
+      const trainingDayNames = schedule.map(s => s.day);
+      const fallbackRoutines = allDays.map(day => {
+        const found = schedule.find(s => s.day === day);
+        if (found) {
+          return { user_id: user.id, day_of_week: day, is_rest_day: false, exercises: exerciseBank[found.type] || exerciseBank["FullBody"] };
+        }
+        return { user_id: user.id, day_of_week: day, is_rest_day: true, exercises: [] };
+      });
+
+      const fallbackDiet = [
+        { user_id: user.id, meal_type: "Desayuno", foods: [
+          { name: "Avena", quantity: "60g" }, { name: "Huevos revueltos", quantity: "3" }, { name: "Plátano", quantity: "1" }
+        ]},
+        { user_id: user.id, meal_type: "Almuerzo", foods: [
+          { name: "Arroz integral", quantity: "150g" }, { name: "Pechuga de pollo", quantity: "200g" }, { name: "Ensalada mixta", quantity: "1 plato" }
+        ]},
+        { user_id: user.id, meal_type: "Cena", foods: [
+          { name: "Pasta integral", quantity: "100g" }, { name: "Atún", quantity: "1 lata" }, { name: "Verduras salteadas", quantity: "1 porción" }
+        ]},
+        { user_id: user.id, meal_type: "Snack", foods: [
+          { name: "Yogur griego", quantity: "200g" }, { name: "Almendras", quantity: "30g" }, { name: "Manzana", quantity: "1" }
+        ]},
+      ];
+
+      await supabase.from("routines").delete().eq("user_id", user.id);
+      await supabase.from("routines").insert(fallbackRoutines);
+      await supabase.from("diet_plans").delete().eq("user_id", user.id);
+      await supabase.from("diet_plans").insert(fallbackDiet);
     }
 
     // 5. Enviar email de bienvenida (no bloquea la respuesta si falla)

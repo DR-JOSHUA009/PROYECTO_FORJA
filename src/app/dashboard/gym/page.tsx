@@ -216,27 +216,86 @@ export default function GymModule() {
               </button>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full text-center">
-              <span className="text-primary font-mono tracking-widest uppercase mb-4 text-sm border border-primary/20 bg-primary/10 px-4 py-1.5 rounded-full">
-                Ejercicio {currentExerciseIdx + 1} de {selectedRoutine.exercises.length}
-              </span>
-              <h2 className="text-3xl md:text-6xl font-black mb-6 md:mb-8 leading-tight">
-                {selectedRoutine.exercises[currentExerciseIdx]?.name}
-              </h2>
-              <div className="text-xl md:text-2xl text-text-secondary font-mono bg-white/5 border border-white/10 px-6 py-3 md:px-8 md:py-4 rounded-2xl mb-8 md:mb-12">
-                {selectedRoutine.exercises[currentExerciseIdx]?.sets} Series × <span className="text-white">{selectedRoutine.exercises[currentExerciseIdx]?.reps} Reps</span>
+            <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+              {/* Exercise Indicator Dots */}
+              <div className="flex items-center gap-2 mb-8">
+                {selectedRoutine.exercises.map((_: any, i: number) => (
+                  <motion.div
+                    key={i}
+                    animate={{ 
+                      scale: i === currentExerciseIdx ? 1.3 : 0.8,
+                    }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    className={`rounded-full transition-colors duration-300 ${
+                      i === currentExerciseIdx 
+                        ? "w-3 h-3 bg-primary shadow-[0_0_12px_rgba(9,250,211,0.6)]" 
+                        : i < currentExerciseIdx 
+                          ? "w-2 h-2 bg-white/50" 
+                          : "w-2 h-2 bg-white/15"
+                    }`}
+                  />
+                ))}
               </div>
 
-              <div className="flex gap-4 w-full justify-center">
-                {currentExerciseIdx > 0 && (
-                  <button 
-                    onClick={() => setCurrentExerciseIdx(prev => prev - 1)}
-                    className="h-16 px-8 rounded-2xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors"
+              {/* Animated Exercise Content */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentExerciseIdx}
+                  initial={{ opacity: 0, x: 80, scale: 0.9, filter: "blur(6px)" }}
+                  animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, x: -80, scale: 0.9, filter: "blur(6px)" }}
+                  transition={{ type: "spring", stiffness: 350, damping: 30, mass: 0.8 }}
+                  className="flex flex-col items-center text-center w-full"
+                >
+                  <motion.span 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08 }}
+                    className="text-primary font-mono tracking-widest uppercase mb-4 text-sm border border-primary/20 bg-primary/10 px-4 py-1.5 rounded-full"
                   >
-                    Anterior
-                  </button>
-                )}
-                <button 
+                    Ejercicio {currentExerciseIdx + 1} de {selectedRoutine.exercises.length}
+                  </motion.span>
+
+                  <motion.h2 
+                    initial={{ opacity: 0, y: 25, scale: 0.92 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 0.04, type: "spring", stiffness: 200 }}
+                    className="text-3xl md:text-6xl font-black mb-6 md:mb-8 leading-tight text-white"
+                  >
+                    {selectedRoutine.exercises[currentExerciseIdx]?.name}
+                  </motion.h2>
+
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.12, type: "spring", stiffness: 200 }}
+                    className="text-xl md:text-2xl text-text-secondary font-mono bg-white/5 border border-white/10 px-6 py-3 md:px-8 md:py-4 rounded-2xl mb-8 md:mb-12"
+                  >
+                    {selectedRoutine.exercises[currentExerciseIdx]?.sets} Series × <span className="text-white font-bold">{selectedRoutine.exercises[currentExerciseIdx]?.reps} Reps</span>
+                  </motion.div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Navigation Buttons */}
+              <div className="flex gap-4 w-full justify-center">
+                <AnimatePresence>
+                  {currentExerciseIdx > 0 && (
+                    <motion.button
+                      initial={{ opacity: 0, x: -20, scale: 0.9 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -20, scale: 0.9 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.93 }}
+                      onClick={() => setCurrentExerciseIdx(prev => prev - 1)}
+                      className="h-16 px-8 rounded-2xl border border-white/10 text-white font-bold hover:bg-white/5 transition-colors"
+                    >
+                      Anterior
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.93 }}
                   onClick={() => {
                     if (currentExerciseIdx < selectedRoutine.exercises.length - 1) {
                       setCurrentExerciseIdx(prev => prev + 1);
@@ -245,21 +304,23 @@ export default function GymModule() {
                       exitFullscreen();
                     }
                   }}
-                  className="h-16 flex-1 max-w-xs rounded-2xl bg-white text-background font-black text-lg flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                  className="h-16 flex-1 max-w-xs rounded-2xl bg-white text-background font-black text-lg flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
                 >
                   {currentExerciseIdx < selectedRoutine.exercises.length - 1 ? (
                     <>Siguiente <Play className="w-5 h-5 fill-current" /></>
                   ) : (
                     <>Finalizar Sesión <CheckCircle className="w-5 h-5" /></>
                   )}
-                </button>
+                </motion.button>
               </div>
             </div>
             
-            <div className="w-full h-1 bg-white/10 rounded-full mt-auto overflow-hidden">
+            {/* Animated Progress Bar */}
+            <div className="w-full h-1.5 bg-white/10 rounded-full mt-auto overflow-hidden">
               <motion.div 
-                className="h-full bg-primary"
-                animate={{ width: `${((currentExerciseIdx) / selectedRoutine.exercises.length) * 100}%` }}
+                className="h-full bg-primary rounded-full shadow-[0_0_8px_rgba(9,250,211,0.4)]"
+                animate={{ width: `${((currentExerciseIdx + 1) / selectedRoutine.exercises.length) * 100}%` }}
+                transition={{ type: "spring", stiffness: 100, damping: 15 }}
               />
             </div>
           </motion.div>

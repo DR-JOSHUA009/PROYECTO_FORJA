@@ -22,6 +22,10 @@ const ACHIEVEMENTS_DEF = [
   { key: "primer_mes", name: "Constancia de Hierro", desc: "30 días activos en la plataforma.", xp: 500, icon: Shield, color: "#ffffff" },
   { key: "xp_5000", name: "Leyenda Forjada", desc: "Acumulaste 5,000 XP totales.", xp: 500, icon: Trophy, color: "#f59e0b" },
   { key: "cardio_20", name: "Maratonista", desc: "20 sesiones de cardio completadas.", xp: 300, icon: Star, color: "#ec4899" },
+  { key: "racha_3", name: "Fuego Interior", desc: "3 días consecutivos con actividad registrada.", xp: 100, icon: Flame, color: "#f97316" },
+  { key: "racha_7", name: "Semana Perfecta", desc: "7 días consecutivos de actividad sin fallar.", xp: 500, icon: Flame, color: "#ef4444" },
+  { key: "racha_14", name: "Inquebrantable", desc: "14 días consecutivos de constancia absoluta.", xp: 1000, icon: Flame, color: "#dc2626" },
+  { key: "racha_30", name: "Llama Eterna", desc: "30 días consecutivos de disciplina imparable.", xp: 2000, icon: Flame, color: "#b91c1c" },
 ];
 
 export default function AchievementsPage() {
@@ -96,6 +100,27 @@ export default function AchievementsPage() {
       // Also check if any routine was modified via confirmations (tool_used)
       const hasAgentMod = (agentConvos?.some(a => a.tool_used) || agentChanges > 0);
 
+      // Calculate current streak
+      const allDatesSet = new Set<string>();
+      workouts?.forEach(w => { if (w.created_at) allDatesSet.add(w.created_at.split('T')[0]); });
+      cardio?.forEach(c => { if (c.date) allDatesSet.add(c.date); });
+      sleepLogs?.forEach(s => { if (s.date) allDatesSet.add(s.date); });
+      foodLogs?.forEach(f => { if (f.date) allDatesSet.add(f.date); });
+      waterLogs?.forEach(w => { if (w.date) allDatesSet.add(w.date); });
+
+      let currentStreak = 0;
+      for (let i = 0; i < 90; i++) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const dStr = d.toISOString().split('T')[0];
+        if (allDatesSet.has(dStr)) {
+          currentStreak++;
+        } else if (i === 0) {
+          continue;
+        } else {
+          break;
+        }
+      }
+
       // Define conditions
       const conditions: Record<string, boolean> = {
         perfil_creado: profileData?.onboarding_completed === true,
@@ -110,6 +135,10 @@ export default function AchievementsPage() {
         primer_mes: activeDays.size >= 30,
         xp_5000: (profileData?.xp || 0) >= 5000,
         cardio_20: (cardio?.length || 0) >= 20,
+        racha_3: currentStreak >= 3,
+        racha_7: currentStreak >= 7,
+        racha_14: currentStreak >= 14,
+        racha_30: currentStreak >= 30,
       };
 
       // Unlock new achievements
