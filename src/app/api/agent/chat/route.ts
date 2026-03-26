@@ -361,21 +361,54 @@ export async function POST(req: Request) {
                 // 4. Listar lo que ya comió hoy
                 const foodList = (todayFood || []).map(f => f.food_name).join(", ") || "nada aún";
 
-                // 5. Construir contexto completo para el agente
-                confirmText = `\n\n🍽️ **Contexto nutricional de hoy (datos reales):**\n`;
-                confirmText += `• Alimentos registrados: ${foodList}\n`;
-                confirmText += `\n📊 **Consumido hoy:**\n`;
-                confirmText += `• Calorías: ${Math.round(consumed.calories)} / ${targetCalories} kcal\n`;
-                confirmText += `• Proteína: ${Math.round(consumed.protein)} / ${targetProtein}g\n`;
-                confirmText += `• Carbohidratos: ${Math.round(consumed.carbs)} / ${targetCarbs}g\n`;
-                confirmText += `• Grasa: ${Math.round(consumed.fat)} / ${targetFat}g\n`;
-                confirmText += `\n✅ **Disponible restante:**\n`;
-                confirmText += `• ${Math.round(remaining.calories)} kcal | ${Math.round(remaining.protein)}g proteína | ${Math.round(remaining.carbs)}g carbos | ${Math.round(remaining.fat)}g grasa\n`;
-                confirmText += `\n🎯 Objetivo actual: **${profile?.goal || "mantenimiento"}** | Dieta: **${profile?.diet_type || "normal"}**`;
+                // 5. Construir contexto interno (NO se muestra al usuario)
+                const nutritionContext = `DATOS NUTRICIONALES REALES DEL DÍA DE HOY:
+- Alimentos consumidos hoy: ${foodList}
+- Calorías consumidas: ${Math.round(consumed.calories)} / ${targetCalories} kcal
+- Proteína consumida: ${Math.round(consumed.protein)} / ${targetProtein}g
+- Carbohidratos consumidos: ${Math.round(consumed.carbs)} / ${targetCarbs}g
+- Grasa consumida: ${Math.round(consumed.fat)} / ${targetFat}g
+- Calorías restantes disponibles: ${Math.round(remaining.calories)} kcal
+- Proteína restante: ${Math.round(remaining.protein)}g
+- Carbohidratos restantes: ${Math.round(remaining.carbs)}g
+- Grasa restante: ${Math.round(remaining.fat)}g
+- Objetivo del usuario: ${profile?.goal || "mantenimiento"}
+- Tipo de dieta: ${profile?.diet_type || "normal"}
+${args.food_query ? `- El usuario pregunta si puede comer: ${args.food_query}` : "- El usuario quiere saber su estado nutricional actual"}`;
 
-                if (args.food_query) {
-                  confirmText += `\n\n🔍 El usuario quiere saber si puede comer: **${args.food_query}**. Responde basándote EXCLUSIVAMENTE en los macros restantes de arriba.`;
+                // 6. Segunda llamada a Groq con el contexto para generar respuesta natural
+                const foodFollowup = await groq.chat.completions.create({
+                  messages: [
+                    {
+                      role: "system" as const,
+                      content: `Eres FORJA, agente IA de fitness y nutrición. Responde en español, sé conciso y motivador. 
+Usa los datos nutricionales reales proporcionados para dar una respuesta personalizada y conversacional.
+Si el usuario pregunta si puede comer algo, responde directamente SÍ o NO basándote en los macros restantes, 
+explica brevemente por qué, y si aplica, sugiere una porción adecuada o alternativa.
+NO muestres tablas de datos crudos. Responde de forma natural como un coach.
+Usa emojis relevantes pero sin exagerar.`
+                    },
+                    {
+                      role: "user" as const,
+                      content: nutritionContext
+                    }
+                  ],
+                  model: "llama-3.3-70b-versatile",
+                  temperature: 0.3,
+                  stream: true,
+                });
+
+                // Stream the natural response
+                for await (const chunk of foodFollowup) {
+                  const content = chunk.choices[0]?.delta?.content;
+                  if (content) {
+                    fullResponse += content;
+                    controller.enqueue(encoder.encode(content));
+                  }
                 }
+
+                // Skip the generic confirmText flow for this tool
+                continue;
               }
 
               if (confirmText) {
