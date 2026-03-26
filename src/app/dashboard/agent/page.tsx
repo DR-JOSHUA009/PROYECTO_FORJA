@@ -124,7 +124,13 @@ function ChatContent() {
         .eq("user_id", user.id)
         .eq("role", "user")
         .gte("created_at", `${todayStr}T00:00:00.000Z`);
-      setDailyCount(count || 0);
+        
+      const currentCount = count || 0;
+      setDailyCount(currentCount);
+
+      if (currentCount >= FREE_LIMIT && pData?.plan !== 'pro') {
+        setLimitReached(true);
+      }
     }
     loadDailyCount();
   }, [supabase]);

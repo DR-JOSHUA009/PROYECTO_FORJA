@@ -39,6 +39,16 @@ export async function POST(req: Request) {
 
     const { messages } = await req.json();
 
+    // Extraer el último mensaje del usuario para guardarlo
+    const lastMsg = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+    if (lastMsg && lastMsg.role === "user") {
+      await supabase.from("agent_conversations").insert({
+        user_id: user.id,
+        role: "user",
+        content: lastMsg.content
+      });
+    }
+
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
 
     // ─── Cargar memorias de largo plazo ──────────────────────────────
