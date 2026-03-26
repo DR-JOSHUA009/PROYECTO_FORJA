@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FORJA | Tu cuerpo. Tu IA. Tu ritmo.",
   description: "El Monolito. Fitness SaaS premium empoderado por IA.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
