@@ -678,7 +678,17 @@ ${wikiInfo}`
                   });
                 }
 
-                confirmText = `\n\n🎯 **Métricas Inyectadas.** He analizado tu día y todos tus alimentos y actividades ya se sumaron a tus estadísticas maestras.\n\n📊 **Balance:** ${checkin?.label || "Procesado"} | ${checkin?.balance || ""}\n🧠 **Mi Lectura:** ${checkin?.reading || "Todo en orden."}\n${checkin?.recommendation ? `💡 **Recomendación:** ${checkin.recommendation}` : ""}\n\n*Nota DURA: Puedes consultar y leer tu Check-In en la pantalla de Stats.*`;
+                // 4. OTORGAR XP (GAMIFICACIÓN) POR HACER LA AUDITORÍA
+                const { data: userProfile } = await supabase.from('users_profile').select('xp, level').eq('user_id', user.id).single();
+                let earnedXpMessage = "";
+                if (userProfile) {
+                  const newXp = (userProfile.xp || 0) + 25;
+                  const newLevel = Math.floor(newXp / 100) + 1;
+                  await supabase.from('users_profile').update({ xp: newXp, level: newLevel }).eq('user_id', user.id);
+                  earnedXpMessage = `\n\n⭐ **¡+25 XP Obtenidos!** Tu constancia sube de nivel.`;
+                }
+
+                confirmText = `\n\n🎯 **Auditoría Diaria Inteligente Completada.**\nHe guardado tu resumen en la base de datos y actualizado tus barras de rendimiento.\n\n📊 **DESGLOSE MATEMÁTICO:**\n- 🍽️ **Ingesta:** ~${checkin?.calories_eaten || 0} kcal\n- 🔥 **Gasto Básico (TDEE):** ~${checkin?.tdee || 0} kcal\n- 🩸 **Gasto Entrenamiento:** ~${checkin?.calories_burned || 0} kcal\n- ⚖️ **Balance Total:** ${checkin?.balance || "0"} kcal (${checkin?.label || "Procesado"})\n\n🧠 **LECTURA:**\n${checkin?.reading || "Todo en orden."}\n\n${checkin?.recommendation ? `💡 **RECOMENDACIÓN:**\n${checkin.recommendation}` : ""}${earnedXpMessage}\n\n*Nota: Tu gráfica dinámica ya se actualizó en la pantalla de Stats.*`;
               }
               // --- TOOL: search_wikipedia (Internet Search) ---
               else if (tool.name === "search_wikipedia") {
