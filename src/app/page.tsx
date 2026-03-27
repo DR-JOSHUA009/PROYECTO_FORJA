@@ -1,6 +1,7 @@
 import Hero from "@/components/landing/Hero";
 import dynamic from "next/dynamic";
 import SmoothScrollProvider from "@/components/providers/SmoothScrollProvider";
+import PwaRedirect from "@/components/pwa/PwaRedirect";
 
 // Lazy loading heavy components that are below the fold
 const Differentiators = dynamic(() => import("@/components/landing/Differentiators"));
@@ -15,6 +16,7 @@ export default function Home() {
   return (
     <SmoothScrollProvider>
       <main className="min-h-screen bg-background flex flex-col items-center">
+        <PwaRedirect />
         <Hero />
         <div id="como-funciona" className="w-full">
           <Differentiators />
