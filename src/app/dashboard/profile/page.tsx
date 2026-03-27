@@ -44,6 +44,7 @@ export default function ProfilePage() {
       full_name: profile.full_name,
       username: profile.username,
       weight_kg: profile.weight_kg ? parseFloat(profile.weight_kg) : null,
+      target_weight: profile.target_weight ? parseFloat(profile.target_weight) : null,
       height_cm: profile.height_cm ? parseFloat(profile.height_cm) : null,
       age: profile.age ? parseInt(profile.age) : null,
       gender: profile.gender,
@@ -161,7 +162,7 @@ export default function ProfilePage() {
         <div className="glass p-6 rounded-2xl border border-white/5 flex flex-col gap-6">
           <h2 className="text-sm font-bold text-white uppercase tracking-widest border-b border-white/5 pb-4">Métricas Físicas</h2>
           
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex flex-col gap-2">
               <label className="text-xs text-text-secondary uppercase tracking-widest font-mono flex items-center gap-1">
                 <Scale className="w-3 h-3" /> Peso
@@ -171,6 +172,18 @@ export default function ProfilePage() {
                 value={profile.weight_kg || ""} 
                 onChange={e => setProfile({...profile, weight_kg: e.target.value})}
                 className="w-full h-12 bg-background border border-white/10 rounded-xl px-4 text-white focus:border-primary transition-colors outline-none font-mono" 
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] text-primary uppercase tracking-widest font-mono flex items-center gap-1">
+                <Target className="w-3 h-3" /> Meta (kg)
+              </label>
+              <input 
+                type="number" step="0.1"
+                value={profile.target_weight || ""} 
+                onChange={e => setProfile({...profile, target_weight: e.target.value})}
+                className="w-full h-12 bg-primary/5 border border-primary/20 rounded-xl px-4 text-primary font-bold focus:border-primary transition-colors outline-none font-mono placeholder:text-primary/30" 
+                placeholder="Ej. 75"
               />
             </div>
             <div className="flex flex-col gap-2">

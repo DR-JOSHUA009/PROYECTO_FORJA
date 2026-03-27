@@ -26,6 +26,7 @@ export async function POST(req: Request) {
         full_name: payload.nombre,
         username: payload.usuario,
         weight_kg: parseFloat(payload.peso),
+        target_weight: parseFloat(payload.peso_objetivo),
         height_cm: parseFloat(payload.altura),
         age: parseInt(payload.edad),
         gender: payload.genero,
@@ -48,8 +49,8 @@ export async function POST(req: Request) {
       Eres un entrenador y nutricionista experto. 
       Actúa como una API que responde estrictamente en JSON. NO devuelvas ningún texto antes ni después del JSON.
       
-      Usuario: ${payload.edad} años, ${payload.peso}kg, ${payload.altura}cm, género: ${payload.genero}, 
-      Objetivo: ${payload.objetivo}, Equipo: ${payload.equipo}, Días de entreno: ${payload.dias}/semana,
+      Usuario: ${payload.edad} años, ${payload.peso}kg, Objetivo Final Físico: ${payload.peso_objetivo}kg, Altura: ${payload.altura}cm, Género: ${payload.genero}, 
+      Intención: ${payload.objetivo}, Equipo: ${payload.equipo}, Días de entreno: ${payload.dias}/semana,
       Dieta: ${payload.dieta}, Alergias: ${payload.alergias.length ? payload.alergias.join(", ") : "Ninguna"}.
       Lesiones: ${payload.lesiones.length ? payload.lesiones.join(", ") : "Ninguna"}.
 

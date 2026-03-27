@@ -12,6 +12,7 @@ interface OnboardingData {
   nombre: string;
   usuario: string;
   peso: string;
+  peso_objetivo: string;
   altura: string;
   edad: string;
   genero: string;
@@ -50,7 +51,7 @@ export default function OnboardingFlow() {
   
   const [data, setData] = useState<OnboardingData>({
     nombre: "", usuario: "",
-    peso: "", altura: "", edad: "", genero: "",
+    peso: "", peso_objetivo: "", altura: "", edad: "", genero: "",
     lesiones: [], enfermedades: [],
     equipo: "",
     dias: 4, intensidad: "", experiencia: "principiante",
@@ -98,7 +99,7 @@ export default function OnboardingFlow() {
 
   const isStepValid = () => {
     switch (step) {
-      case 1: return data.nombre && data.usuario && data.peso && data.altura && data.edad && data.genero;
+      case 1: return data.nombre && data.usuario && data.peso && data.peso_objetivo && data.altura && data.edad && data.genero;
       case 2: return true; // Lesiones y enfermedades pueden estar vacías
       case 3: return data.equipo !== "";
       case 4: return data.dias > 0 && data.intensidad !== "" && data.experiencia !== "";
@@ -184,28 +185,32 @@ export default function OnboardingFlow() {
                   <Activity className="w-6 h-6 text-white" />
                   <h2 className="text-2xl font-bold text-white">Tu cuerpo</h2>
                 </div>
-                <div className="grid grid-cols-2 gap-4 flex-1">
-                  <div className="flex flex-col gap-1 col-span-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-1">
+                  <div className="flex flex-col gap-1 col-span-2 md:col-span-3">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Nombre Completo</label>
                     <input type="text" value={data.nombre} onChange={e => setData({...data, nombre: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Tu nombre" />
                   </div>
-                  <div className="flex flex-col gap-1 col-span-2">
+                  <div className="flex flex-col gap-1 col-span-2 md:col-span-3">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Username (ID de Red)</label>
                     <input type="text" value={data.usuario} onChange={e => setData({...data, usuario: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="@usuario" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs uppercase tracking-widest text-text-secondary">Peso (kg)</label>
+                    <label className="text-xs uppercase tracking-widest text-text-secondary">Peso Actual (kg)</label>
                     <input type="number" value={data.peso} onChange={e => setData({...data, peso: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Ej. 75" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-primary uppercase tracking-widest font-mono font-bold">Peso Meta (kg)</label>
+                    <input type="number" value={data.peso_objetivo} onChange={e => setData({...data, peso_objetivo: e.target.value})} className="w-full h-12 bg-primary/10 border border-primary/30 rounded-xl px-4 text-primary outline-none focus:border-primary transition-colors font-black" placeholder="Ej. 68" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Altura (cm)</label>
                     <input type="number" value={data.altura} onChange={e => setData({...data, altura: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Ej. 178" />
                   </div>
-                  <div className="flex flex-col gap-1 col-span-1">
+                  <div className="flex flex-col gap-1 col-span-1 md:col-span-1 border-t border-white/5 pt-2">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Edad</label>
                     <input type="number" value={data.edad} onChange={e => setData({...data, edad: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors" placeholder="Años" />
                   </div>
-                  <div className="flex flex-col gap-1 col-span-1">
+                  <div className="flex flex-col gap-1 col-span-1 md:col-span-2 border-t border-white/5 pt-2">
                     <label className="text-xs uppercase tracking-widest text-text-secondary">Género</label>
                     <select value={data.genero} onChange={e => setData({...data, genero: e.target.value})} className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-white transition-colors appearance-none">
                       <option value="" disabled className="bg-[#111]">Elegir</option>
