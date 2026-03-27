@@ -51,13 +51,17 @@ export async function POST(req: Request) {
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
 
-    // ─── Cargar memorias de largo plazo y planes actuales ────────────────
-    const { data: memories } = await supabase
-      .from("agent_memory")
-      .select("category, fact")
-      .eq("user_id", user.id)
-      .order("relevance", { ascending: false })
-      .limit(30);
+    // ─── Cargar memorias de largo plazo (SOLO PRO) y planes actuales ────────────────
+    let memories: any = null;
+    if (userPlan === 'pro') {
+      const { data } = await supabase
+        .from("agent_memory")
+        .select("category, fact")
+        .eq("user_id", user.id)
+        .order("relevance", { ascending: false })
+        .limit(30);
+      memories = data;
+    }
 
     const { data: currentRoutines } = await supabase.from("routines").select("day_of_week, exercises").eq("user_id", user.id);
     const { data: currentDiet } = await supabase.from("diet_plans").select("meal_type, foods").eq("user_id", user.id);
@@ -100,6 +104,10 @@ export async function POST(req: Request) {
       - Lesiones: ${profile?.injuries || "Ninguna"} | Enfermedades: ${profile?.diseases || "Ninguna"}
       - Nivel XP: ${profile?.xp || 0} | Nivel: ${profile?.level || 1}
 
+      TIEMPO REAL (Usa estos datos si el usuario hace referencia al tiempo, "hoy", "mañana", "ayer"):
+      - Fecha Actual: ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Mexico_City' })}
+      - Hora Actual: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute:'2-digit', timeZone: 'America/Mexico_City' })}
+
       RUTINAS ACTUALES DEL USUARIO:
       ${currentRoutines?.length ? currentRoutines.map(r => `${r.day_of_week}: ${r.exercises.map((e: any) => e.name).join(", ")}`).join("\n      ") : "No tiene rutina configurada."}
 
@@ -116,7 +124,7 @@ export async function POST(req: Request) {
       5. Responde siempre en español.
       6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
       7. Al proponer cambios generales en los requerimientos calóricos diarios (bulk, cut, mantenimiento), usa la herramienta update_macros para registrar los nuevos valores en el perfil del usuario de forma transparente y sin requerir la confirmación (se aplica directo).
-      ${userPlan !== 'pro' ? '8. RESTRICCIÓN DE PLAN GRATUITO: Actualmente el usuario tiene el plan BÁSICO (Free). NO tienes acceso a las herramientas de modificar rutinas, modificar comidas ni recalcular macros. Si el usuario te pide cambiar un ejercicio, modificar su dieta o sus macros, DEBES decirle muy amablemente que esa es una función exclusiva de FORJA PRO, e invitarlo a mejorar su suscripción para desbloquear tu capacidad de reestructuración total.' : ''}
+      ${userPlan !== 'pro' ? '8. RESTRICCIÓN DE PLAN GRATUITO: Actualmente el usuario tiene el plan BÁSICO (Free). NO tienes acceso a las herramientas de modificar rutinas, modificar comidas ni recalcular macros. Tampoco tienes conexión a internet para buscar información externa (Wikipedia). Si el usuario te pide cambiar su plan o investigar conceptos externos, DEBES decirle muy amablemente que esas capacidades son exclusivas de FORJA PRO, e invitarlo a mejorar su suscripción.' : ''}
     `;
 
     const groqMessages = [
@@ -266,13 +274,27 @@ export async function POST(req: Request) {
             required: []
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "search_wikipedia",
+          description: "Busca información enciclopédica libre en internet (Wikipedia). Úsala SIEMPRE que el usuario te pregunte por biografías, conceptos científicos, historia, términos complejos, suplementos o datos curiosos que no tengas claros en tu entrenamiento o necesites verificar.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "El concepto, persona o término breve a buscar (ej: 'Creatina', 'Arnold Schwarzenegger', 'Dieta Cetogénica')" }
+            },
+            required: ["query"]
+          }
+        }
       }
     ];
 
     // Aplicar las restricciones del plan Free quitándole las herramientas premium
     const availableTools = userPlan === 'pro' 
       ? tools 
-      : tools.filter(t => !["update_routine_day", "update_diet_meal", "update_macros"].includes(t.function.name));
+      : tools.filter(t => !["update_routine_day", "update_diet_meal", "update_macros", "search_wikipedia"].includes(t.function.name));
 
     const completion = await groq.chat.completions.create({
       messages: groqMessages,
@@ -525,6 +547,51 @@ Usa los datos nutricionales reales a tu disposición para dar una respuesta pers
                 // Skip the generic confirmText flow for this tool
                 continue;
               }
+              // --- TOOL: search_wikipedia (Internet Search) ---
+              else if (tool.name === "search_wikipedia") {
+                const query = args.query;
+                let wikiInfo = "No se encontraron resultados consistentes en Wikipedia para esa búsqueda.";
+                
+                try {
+                  const res = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&srlimit=2`);
+                  const data = await res.json();
+                  if (data.query?.search?.length > 0) {
+                    // Extraer título y snippet (limpiando etiquetas html como <span class="searchmatch">)
+                    wikiInfo = data.query.search.map((s: any) => `* ${s.title}: ${s.snippet.replace(/<[^>]*>?/gm, '')}`).join("\n\n");
+                  }
+                } catch (err) {
+                  wikiInfo = "Error de conexión con la enciclopedia externa.";
+                }
+
+                const wikiMessages = [
+                  {
+                    role: "system" as const,
+                    content: `Eres FORJA. El usuario te ha hecho una pregunta y el sistema acaba de buscar información en la enciclopedia (Wikipedia) sobre el término: '${query}'.
+Usa la siguiente información recopilada para darle una respuesta inteligente, directa pero en un tono de tutor o agente AI. NO digas explícitamente "Según Wikipedia" a menos que sea muy necesario; solo incorpora los datos en tu respuesta.
+
+RESULTADOS DE BÚSQUEDA:
+${wikiInfo}`
+                  },
+                  ...groqMessages.filter(m => m.role !== "system")
+                ];
+
+                const wikiFollowup = await groq.chat.completions.create({
+                  messages: wikiMessages,
+                  model: "llama-3.3-70b-versatile",
+                  temperature: 0.3,
+                  stream: true,
+                });
+
+                for await (const chunk of wikiFollowup) {
+                  const content = chunk.choices[0]?.delta?.content;
+                  if (content) {
+                    fullResponse += content;
+                    controller.enqueue(encoder.encode(content));
+                  }
+                }
+
+                continue;
+              }
 
               if (confirmText) {
                 fullResponse += confirmText;
@@ -540,10 +607,12 @@ Usa los datos nutricionales reales a tu disposición para dar una respuesta pers
             controller.enqueue(encoder.encode(`\n__METADATA__${JSON.stringify(metadata)}`));
           }
 
-          // ─── Extracción automática de memorias (background, no bloquea) ───
-          const lastUserMsg = messages.filter((m: any) => m.role === "user").pop()?.content || "";
-          if (lastUserMsg.length > 10) {
-            extractAndSaveMemories(groq, supabase, user.id, lastUserMsg, fullResponse).catch(() => {});
+          // ─── Extracción automática de memorias (Solo PRO, background, no bloquea) ───
+          if (userPlan === 'pro') {
+            const lastUserMsg = messages.filter((m: any) => m.role === "user").pop()?.content || "";
+            if (lastUserMsg.length > 10) {
+              extractAndSaveMemories(groq, supabase, user.id, lastUserMsg, fullResponse).catch(() => {});
+            }
           }
 
         } finally {
