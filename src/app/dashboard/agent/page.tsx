@@ -152,7 +152,14 @@ function ChatContent() {
         return;
       }
 
-      if (!response.ok) throw new Error("Error en la conexión");
+      if (!response.ok) {
+        let errStr = "Error en la conexión";
+        try {
+           const errJson = await response.json();
+           if (errJson.error) errStr = errJson.error;
+        } catch(e) {}
+        throw new Error(errStr);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -198,9 +205,17 @@ function ChatContent() {
           return newMsgs;
         });
       }
-    } catch (err) {
-      toast("Error de conexión con el agente", "error");
-      setMessages(prev => [...prev, { role: "agent", content: "Lo siento, perdí la conexión con el servidor maestro." }]);
+    } catch (err: any) {
+      toast("Fallo del servidor", "error");
+      setMessages(prev => {
+        const msgs = [...prev];
+        if (msgs.length > 0 && msgs[msgs.length - 1].role === "agent" && !msgs[msgs.length - 1].content) {
+             msgs[msgs.length - 1].content = `🛑 ALERTA (Dile al técnico): ${err.message}`;
+        } else {
+             msgs.push({ role: "agent", content: `🛑 ALERTA (Dile al técnico): ${err.message}` });
+        }
+        return msgs;
+      });
     } finally {
       setIsTyping(false);
     }
