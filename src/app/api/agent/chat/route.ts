@@ -124,7 +124,12 @@ export async function POST(req: Request) {
       5. Responde siempre en español.
       6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
       7. Al proponer cambios generales en los requerimientos calóricos diarios (bulk, cut, mantenimiento), usa la herramienta update_macros para registrar los nuevos valores en el perfil del usuario de forma transparente y sin requerir la confirmación (se aplica directo).
-      ${userPlan !== 'pro' ? '8. RESTRICCIÓN DE PLAN GRATUITO: Actualmente el usuario tiene el plan BÁSICO (Free). NO tienes acceso a las herramientas de modificar rutinas, modificar comidas ni recalcular macros. Tampoco tienes conexión a internet para buscar información externa (Wikipedia). Si el usuario te pide cambiar su plan o investigar conceptos externos, DEBES decirle muy amablemente que esas capacidades son exclusivas de FORJA PRO, e invitarlo a mejorar su suscripción.' : ''}
+      8. FUNCIÓN PRO ESTRELLA (Smart Daily Check-In): SIEMPRE que el usuario mencione lo que comió, almorzó, desayunó, cenó o entrenó HOY (palabras clave: "comí", "entrené", "fui a", "desayuné", "hice"), DEBES usar la herramienta 'process_daily_checkin'. 
+         - Infiere de manera razonable y experta los macros (Calorías, Prot, Carbs, Grasas) de sus menciones sueltas sin exigir precisión.
+         - Si no menciona duración, asume 75 minutos promedio (ej. para BJJ). Calcula el TDEE base + Actividad.
+         - Elige una etiqueta para el balance del día ("Agresivo / Moderado / Mantenimiento / Superávit"). Si el déficit > 1200 kcal, es "Déficit Agresivo Peligroso". Si consume < 1400kcal y hace BJJ, alerta severamente su rendimiento.
+         - Escribe una Lectura humana y experta de cómo le fue. Recomiéndale qué cenar si le faltan macros o tiene un agujero calórico agresivo.
+      ${userPlan !== 'pro' ? '9. RESTRICCIÓN DE PLAN GRATUITO: Actualmente el usuario tiene el plan BÁSICO (Free). NO tienes acceso a las herramientas de modificar rutinas, modificar comidas ni recalcular macros. Tampoco tienes conexión a internet para buscar información externa (Wikipedia). Si el usuario te pide cambiar su plan o investigar conceptos externos, DEBES decirle muy amablemente que esas capacidades son exclusivas de FORJA PRO, e invitarlo a mejorar su suscripción.' : ''}
     `;
 
     const groqMessages = [
@@ -288,13 +293,46 @@ export async function POST(req: Request) {
             required: ["query"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "process_daily_checkin",
+          description: "Procesa y audita el resumen diario (Smart Check-In) del usuario INYECTANDO su consumo y entrenamiento automático en sus bases de datos. ÚSALA CUANDO CUENTE QUÉ COMIÓ O ENTRENÓ HOY.",
+          parameters: {
+            type: "object",
+            properties: {
+              foods: { 
+                type: "array", description: "Lista de alimentos consumidos deducidos de la charla", items: { type: "object", properties: { name: { type: "string" }, calories: { type: "number" }, protein_g: { type: "number" }, carbs_g: { type: "number" }, fat_g: { type: "number" }, meal_type: { type: "string", enum: ["Desayuno", "Almuerzo", "Merienda", "Cena", "Snack"] } } }
+              },
+              cardio_sessions: {
+                type: "array", description: "Entrenamientos o cardio realizados deducidos", items: { type: "object", properties: { activity: { type: "string" }, duration_min: { type: "number" }, intensity_level: { type: "number" } } }
+              },
+              checkin: {
+                type: "object",
+                properties: {
+                  calories_eaten: { type: "number" },
+                  protein_g: { type: "number" },
+                  carbs_g: { type: "number" },
+                  calories_burned: { type: "number", description: "Cals quemadas activamente" },
+                  tdee: { type: "number", description: "Gasto calórico total (Base + Quemadas)" },
+                  balance: { type: "string", description: "Ej: Déficit Calórico (-500 kcal)" },
+                  label: { type: "string", description: "Etiqueta: Agresivo, Moderado, Mantenimiento, Superávit" },
+                  reading: { type: "string", description: "Interpretación cruda y realista de Forja sobre su día (alertas si déficit altísimo y 1400kcal o menos)" },
+                  recommendation: { type: "string", description: "Qué comer para cerrar si es necesario." }
+                }
+              }
+            },
+            required: ["foods", "cardio_sessions", "checkin"]
+          }
+        }
       }
     ];
 
     // Aplicar las restricciones del plan Free quitándole las herramientas premium
     const availableTools = userPlan === 'pro' 
       ? tools 
-      : tools.filter(t => !["update_routine_day", "update_diet_meal", "update_macros", "search_wikipedia"].includes(t.function.name));
+      : tools.filter(t => !["update_routine_day", "update_diet_meal", "update_macros", "search_wikipedia", "process_daily_checkin"].includes(t.function.name));
 
     const completion = await groq.chat.completions.create({
       messages: groqMessages,
@@ -544,6 +582,95 @@ Usa los datos nutricionales reales a tu disposición para dar una respuesta pers
                   }
                 }
 
+                // Skip the generic confirmText flow for this tool
+                continue;
+              }
+              // --- TOOL: search_wikipedia (Internet Search) ---
+              else if (tool.name === "search_wikipedia") {
+                const query = args.query;
+                let wikiInfo = "No se encontraron resultados consistentes en Wikipedia para esa búsqueda.";
+                
+                try {
+                  const res = await fetch(`https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&srlimit=2`);
+                  const data = await res.json();
+                  if (data.query?.search?.length > 0) {
+                    // Extraer título y snippet
+                    wikiInfo = data.query.search.map((s: any) => `* ${s.title}: ${s.snippet.replace(/<[^>]*>?/gm, '')}`).join("\n\n");
+                  }
+                } catch (err) {
+                  wikiInfo = "Error de conexión con la enciclopedia externa.";
+                }
+
+                const wikiMessages = [
+                  {
+                    role: "system" as const,
+                    content: `Eres FORJA. El usuario te ha hecho una pregunta y el sistema acaba de buscar información en la enciclopedia (Wikipedia) sobre el término: '${query}'.
+Usa la siguiente información recopilada para darle una respuesta inteligente, directa pero en un tono de tutor o agente AI. NO digas explícitamente "Según Wikipedia" a menos que sea muy necesario; solo incorpora los datos en tu respuesta.
+
+RESULTADOS DE BÚSQUEDA:
+${wikiInfo}`
+                  },
+                  ...groqMessages.filter(m => m.role !== "system")
+                ];
+
+                const wikiFollowup = await groq.chat.completions.create({
+                  messages: wikiMessages,
+                  model: "llama-3.3-70b-versatile",
+                  temperature: 0.3,
+                  stream: true,
+                });
+
+                for await (const chunk of wikiFollowup) {
+                  const content = chunk.choices[0]?.delta?.content;
+                  if (content) {
+                    fullResponse += content;
+                    controller.enqueue(encoder.encode(content));
+                  }
+                }
+
+                continue;
+              }
+              // --- TOOL: process_daily_checkin (Smart Daily Audit) ---
+              else if (tool.name === "process_daily_checkin") {
+                const { foods, cardio_sessions, checkin } = args;
+
+                // 1. Guardar cada comida suelta (hace que las Stats globales y Dashboard crezcan)
+                if (foods && foods.length > 0) {
+                  const foodInserts = foods.map((f: any) => ({
+                    user_id: user.id, date: today, food_name: f.name, calories: f.calories || 0, protein_g: f.protein_g || 0, carbs_g: f.carbs_g || 0, fat_g: f.fat_g || 0, meal_type: f.meal_type || "Snack"
+                  }));
+                  await supabase.from("food_logs").insert(foodInserts);
+                }
+
+                // 2. Guardar Cardio (mueve el nivel de XP y los minutos totales)
+                if (cardio_sessions && cardio_sessions.length > 0) {
+                  const cardioInserts = cardio_sessions.map((c: any) => ({
+                    user_id: user.id, date: today, activity: c.activity, duration_min: c.duration_min || 45, intensity_level: c.intensity_level || 5, distance_km: 0
+                  }));
+                  await supabase.from("cardio_sessions").insert(cardioInserts);
+                }
+
+                // 3. Guardar en la tabla especializada de auditoría
+                if (checkin) {
+                  // Borramos la del día si ya existía para regenerarla "upsert-style" a prueba de fallos
+                  await supabase.from("daily_checkins").delete().eq("user_id", user.id).eq("date", today);
+                  
+                  await supabase.from("daily_checkins").insert({
+                    user_id: user.id,
+                    date: today,
+                    calories_eaten: checkin.calories_eaten || 0,
+                    protein_g: checkin.protein_g || 0,
+                    carbs_g: checkin.carbs_g || 0,
+                    calories_burned: checkin.calories_burned || 0,
+                    tdee: checkin.tdee || 2500,
+                    balance: checkin.balance || "Desconocido",
+                    label: checkin.label || "Medición",
+                    reading: checkin.reading || "Día capturado correctamente.",
+                    recommendation: checkin.recommendation || ""
+                  });
+                }
+
+                confirmText = `\n\n🎯 **Métricas Inyectadas.** He analizado tu día y todos tus alimentos y actividades ya se sumaron a tus estadísticas maestras.\n\n📊 **Balance:** ${checkin.label} | ${checkin.balance}\n🧠 **Mi Lectura:** ${checkin.reading}\n${checkin.recommendation ? `💡 **Recomendación:** ${checkin.recommendation}` : ""}\n\n*Nota DURA: Puedes consultar y leer tu Check-In en la pantalla de Stats.*`;
                 // Skip the generic confirmText flow for this tool
                 continue;
               }

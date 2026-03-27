@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, Calendar, Target, Award, Activity, Heart, Clock, Flame, Droplet, Moon, Dumbbell, Crown, Lock } from "lucide-react";
+import { BarChart3, TrendingUp, Calendar, Target, Award, Activity, Heart, Clock, Flame, Droplet, Moon, Dumbbell, Crown, Lock, Cpu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon3D } from "@/components/ui/Icon3D";
@@ -12,6 +12,7 @@ export default function StatsPage() {
   const [profile, setProfile] = useState<any>(null);
   const [activityGrid, setActivityGrid] = useState<{ date: string; count: number }[]>([]);
   const [weeklyData, setWeeklyData] = useState<number[]>([]);
+  const [dailyCheckins, setDailyCheckins] = useState<any[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -28,6 +29,9 @@ export default function StatsPage() {
       const { data: food } = await supabase.from("food_logs").select("*").eq("user_id", user.id);
       const { data: water } = await supabase.from("water_logs").select("*").eq("user_id", user.id);
       const { data: workouts } = await supabase.from("workout_logs").select("*").eq("user_id", user.id);
+      const { data: checkins } = await supabase.from("daily_checkins").select("*").eq("user_id", user.id).order("date", { ascending: false });
+      
+      setDailyCheckins(checkins || []);
       
       const totalKms = cardio?.reduce((acc, s) => acc + Number(s.distance_km || 0), 0) || 0;
       const totalMins = cardio?.reduce((acc, s) => acc + Number(s.duration_min || 0), 0) || 0;
@@ -281,7 +285,93 @@ export default function StatsPage() {
           <div className="h-px flex-1 bg-white/10" />
         </div>
 
-        {/* PRO SECTION 1: Tendencia de Peso */}
+        {/* PRO SECTION 1: Auditoría Diaria IA (Smart Check-In) */}
+        <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
+          <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
+            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Auditoría Diaria Inteligente</h2>
+            <p className="text-text-secondary text-sm mb-6">El desglose crudo de tu último reporte procesado por FORJA.</p>
+            
+            {dailyCheckins.length > 0 ? (
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Macros & Balance */}
+                  <div className="flex-1 glass p-6 rounded-2xl border border-white/5 bg-background/60">
+                    <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono mb-4 flex items-center gap-2">
+                       <Flame className="w-3 h-3 text-orange-400"/> Balance: {dailyCheckins[0].label}
+                    </span>
+                    <div className="flex items-baseline gap-2 mb-6">
+                      <span className="text-4xl font-black text-white">{dailyCheckins[0].calories_eaten}</span>
+                      <span className="text-xs text-text-muted uppercase font-mono tracking-widest">In /</span>
+                      <span className="text-3xl font-black text-primary ml-1">{dailyCheckins[0].tdee}</span>
+                      <span className="text-[10px] text-primary/60 uppercase font-mono tracking-widest">TDEE</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                       <div className="bg-white/5 p-3 rounded-xl flex justify-between items-center border border-white/5">
+                         <span className="text-[10px] uppercase font-mono text-text-muted">Proteína</span>
+                         <span className="font-bold text-white text-sm">{dailyCheckins[0].protein_g}g</span>
+                       </div>
+                       <div className="bg-white/5 p-3 rounded-xl flex justify-between items-center border border-white/5">
+                         <span className="text-[10px] uppercase font-mono text-text-muted">Carbs</span>
+                         <span className="font-bold text-white text-sm">{dailyCheckins[0].carbs_g}g</span>
+                       </div>
+                    </div>
+
+                    <div className="mt-2 flex justify-between items-center bg-white/5 border border-white/10 p-4 rounded-xl font-mono text-xs">
+                      <span className="text-text-secondary">Diferencia Neta:</span>
+                      <span className="font-black text-white">{dailyCheckins[0].balance}</span>
+                    </div>
+                  </div>
+
+                  {/* Lectura & Recomendación */}
+                  <div className="flex-[1.5] flex flex-col gap-4">
+                    <div className="glass p-6 rounded-2xl border border-primary/20 bg-primary/5 flex-1 relative overflow-hidden group">
+                       <Cpu className="absolute -right-4 -bottom-4 w-32 h-32 text-primary/10 group-hover:scale-110 group-hover:text-primary/20 transition-all duration-500" />
+                       <span className="text-[10px] text-primary uppercase tracking-widest font-mono mb-3 flex items-center gap-2">
+                         <Cpu className="w-3 h-3"/> Lectura Oficial FORJA
+                       </span>
+                       <p className="text-sm text-white/90 leading-relaxed font-medium relative z-10">"{dailyCheckins[0].reading}"</p>
+                    </div>
+
+                    {dailyCheckins[0].recommendation && (
+                      <div className="glass p-6 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 relative overflow-hidden">
+                        <span className="text-[10px] text-yellow-500 uppercase tracking-widest font-mono mb-2 flex items-center gap-2">
+                          <Target className="w-3 h-3"/> Instrucción de Cierre
+                        </span>
+                        <p className="text-sm text-yellow-100/80 leading-relaxed relative z-10">{dailyCheckins[0].recommendation}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center px-2">
+                   <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">Último reporte: {new Date(dailyCheckins[0].date).toLocaleDateString('es-ES', {weekday: 'long', day: 'numeric', month: 'long'})}</span>
+                </div>
+              </div>
+            ) : (
+               <div className="py-16 glass rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
+                 <Cpu className="w-8 h-8 text-white/10 mb-4" />
+                 <span className="text-sm font-bold text-white mb-1">Sin datos de la Inteligencia</span>
+                 <p className="text-xs text-text-secondary max-w-sm">Ve al Agente IA y cuéntale qué comiste y entrenaste hoy para generar tu primera auditoría nutricional.</p>
+               </div>
+            )}
+            
+          </div>
+          {/* PRO Overlay */}
+          {profile?.plan !== 'pro' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-background/60 backdrop-blur-md">
+              <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
+                <Lock className="w-7 h-7 text-yellow-400" />
+              </div>
+              <span className="text-sm font-black text-white mb-1">Auditoría Diaria Inteligente</span>
+              <span className="text-xs text-text-secondary mb-5 w-72 text-center">FORJA analiza tu voz en lenguaje natural, disecciona tus macros consumidos vs quemados, y genera una auditoría perfecta al cerrar el día.</span>
+              <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
+                Desbloquear con PRO
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* PRO SECTION 2: Tendencia de Peso */}
         <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
           <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
             <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Tendencia de Peso (30 días)</h2>
