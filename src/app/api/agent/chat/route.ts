@@ -336,7 +336,7 @@ export async function POST(req: Request) {
 
     const completion = await groq.chat.completions.create({
       messages: groqMessages,
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       temperature: 0.1,
       stream: true,
       tools: availableTools,
@@ -712,7 +712,7 @@ ${wikiInfo}`
 
                 const wikiFollowup = await groq.chat.completions.create({
                   messages: wikiMessages,
-                  model: "llama-3.3-70b-versatile",
+                  model: "llama-3.1-8b-instant",
                   temperature: 0.3,
                   stream: true,
                 });
@@ -801,7 +801,7 @@ NO extraigas datos que ya existen en un perfil típico (peso, edad, objetivo gen
           content: `Mensaje del usuario: "${userMessage}"\n\nRespuesta del agente: "${assistantResponse.substring(0, 500)}"`
         }
       ],
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       temperature: 0,
       response_format: { type: "json_object" },
     });
