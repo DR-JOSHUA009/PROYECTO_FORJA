@@ -13,6 +13,7 @@ export default function StatsPage() {
   const [activityGrid, setActivityGrid] = useState<{ date: string; count: number }[]>([]);
   const [weeklyData, setWeeklyData] = useState<number[]>([]);
   const [dailyCheckins, setDailyCheckins] = useState<any[]>([]);
+  const [todayStats, setTodayStats] = useState<any>({ eaten: 0, burned: 0, activities: 0 });
   const supabase = createClient();
 
   useEffect(() => {
@@ -84,6 +85,20 @@ export default function StatsPage() {
         workouts: { count: workouts?.length || 0 },
         adherence
       });
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayEaten = food?.filter(f => f.date === todayStr).reduce((acc, f) => acc + Number(f.calories || 0), 0) || 0;
+      const todayCardioCount = cardio?.filter(c => c.date === todayStr).length || 0;
+      let todayBurned = cardio?.filter(c => c.date === todayStr).reduce((acc, c) => acc + (Number(c.duration_min || 0) * 10), 0) || 0;
+      const todayWorkouts = workouts?.filter(w => w.created_at?.split('T')[0] === todayStr).length || 0;
+      todayBurned += todayWorkouts * 300;
+      
+      setTodayStats({
+        eaten: todayEaten,
+        burned: todayBurned,
+        activities: todayCardioCount + todayWorkouts,
+      });
+
       setLoading(false);
     }
     loadStats();
@@ -220,6 +235,26 @@ export default function StatsPage() {
         </div>
       </div>
 
+      {/* ===== FREE TIER: RESUMEN DE HOY ===== */}
+      <div className="glass p-6 md:p-8 rounded-3xl border border-white/5 mb-8">
+        <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-6">Tu Seguimiento de Hoy</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-5 bg-white/5 rounded-2xl flex flex-col justify-center items-center text-center border border-white/5">
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-2 flex items-center gap-2"><Target className="w-3 h-3 text-primary" /> Actividad Realizada</span>
+            <span className="text-4xl font-black text-white">{todayStats.activities} <span className="text-sm text-text-muted font-normal">sesiones</span></span>
+          </div>
+          <div className="p-5 bg-white/5 rounded-2xl flex flex-col justify-center items-center text-center border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 w-full h-1 bg-linear-to-r from-orange-400 to-red-500" />
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-2 flex items-center gap-2"><Flame className="w-3 h-3 text-orange-400" /> Kcal Quemadas Est.</span>
+            <span className="text-4xl font-black text-white">{todayStats.burned} <span className="text-sm text-text-muted font-normal">kcal</span></span>
+          </div>
+          <div className="p-5 bg-white/5 rounded-2xl flex flex-col justify-center items-center text-center border border-white/5">
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-2 flex items-center gap-2"><Activity className="w-3 h-3 text-cyan-400" /> Kcal Consumidas</span>
+            <span className="text-4xl font-black text-white">{todayStats.eaten} <span className="text-sm text-text-muted font-normal">kcal</span></span>
+          </div>
+        </div>
+      </div>
+
       {/* ===== FREE TIER: WEEKLY & STREAK (Replaces Github Grid) ===== */}
       <div className="glass p-6 md:p-8 rounded-3xl border border-white/5 mb-8">
         <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-6">Tu Desempeño General</h2>
@@ -350,46 +385,55 @@ export default function StatsPage() {
           )}
         </div>
 
-        {/* PRO SECTION 2: Impacto Calórico Diario (Cargado en vivo desde el checkin IA) */}
+        {/* PRO SECTION 2: Trazador de Objetivo Médico/Físico */}
         <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
           <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
-            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Desempeño Energético (Historial Inteligente)</h2>
-            <p className="text-text-secondary text-sm mb-8">El balance de tus calorías consumidas vs quemadas según las auditorías recientes del Agente.</p>
-            <div className="flex items-end justify-around gap-4 h-[200px] border-b border-white/5 pb-2">
-              {dailyCheckins.slice(0, 7).reverse().map((chk: any, i) => {
-                const height = Math.min((chk.calories_eaten / Math.max(chk.tdee, 1)) * 100, 100);
-                const isOver = chk.calories_eaten > chk.tdee;
-                return (
-                 <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-2 relative group w-full">
-                   <div className="opacity-0 group-hover:opacity-100 absolute -top-8 text-[10px] font-mono text-white whitespace-nowrap bg-black/80 px-2 py-1 rounded transition-opacity pointer-events-none z-10">
-                     {chk.calories_eaten} kcal
+            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Seguimiento de Objetivo Físico</h2>
+            <p className="text-text-secondary text-sm mb-6">El estado actual hacia tu meta corporal registrada en FORJA.</p>
+            
+            <div className="flex flex-col md:flex-row gap-8 items-center mb-8">
+              {/* Peso Progress */}
+              <div className="flex-1 w-full bg-white/5 rounded-2xl p-6 border border-white/10 relative overflow-hidden">
+                 <Target className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5" />
+                 <div className="flex justify-between items-end mb-4 relative z-10">
+                   <div>
+                     <span className="text-[10px] font-mono uppercase text-text-muted block mb-1">Peso Actual</span>
+                     <span className="text-3xl font-black text-white">{profile?.weight || 0} kg</span>
                    </div>
-                   <div className={`w-full max-w-[40px] rounded-t-lg transition-all hover:opacity-100 opacity-80 ${isOver ? 'bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'bg-primary'}`} style={{ height: `${height}%` }} />
-                   <span className="text-[9px] text-text-muted uppercase font-mono mt-1">{new Date(chk.date).toLocaleDateString('es-ES', { weekday: 'short' })}</span>
+                   <div className="text-right">
+                     <span className="text-[10px] font-mono uppercase text-text-muted block mb-1">Objetivo</span>
+                     <span className="text-3xl font-black text-primary">{profile?.target_weight || 0} kg</span>
+                   </div>
                  </div>
-                )
-              })}
-              {dailyCheckins.length === 0 && (
-                <div className="w-full flex items-center justify-center h-full text-text-muted text-sm pb-10 flex-col gap-2">
-                  <BarChart3 className="w-8 h-8 opacity-20" />
-                  <p>Inyecta reportes diarios en el Agente IA para generar esta gráfica.</p>
-                </div>
-              )}
-            </div>
-            <div className="mt-8 grid grid-cols-2 gap-4">
-              <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
-                 <div>
-                   <span className="text-xl font-black text-white">{dailyCheckins.length > 0 ? dailyCheckins[0].tdee : 0}</span>
-                   <span className="text-[10px] text-text-muted font-mono uppercase ml-1 block">TDEE Actual</span>
+                 
+                 <div className="w-full h-3 bg-background rounded-full overflow-hidden relative z-10">
+                    <div 
+                      className="h-full bg-linear-to-r from-primary to-cyan-400 rounded-full" 
+                      style={{ 
+                        width: `${Math.min(
+                          (profile?.target_weight && profile?.weight 
+                            ? (profile.goal === 'bajar' 
+                                ? ((100 - profile.weight) / (100 - profile.target_weight) * 100) 
+                                : (profile.weight / profile.target_weight * 100)
+                              ) 
+                            : 0), 100)}%` 
+                      }} 
+                    />
                  </div>
-                 <Target className="w-6 h-6 text-white/20" />
+                 <p className="text-xs text-text-muted mt-3 font-mono relative z-10">Meta: {profile?.goal === 'bajar' ? 'Déficit Calórico' : (profile?.goal === 'subir_musculo' ? 'Superávit Limpio' : 'Mantenimiento')}</p>
               </div>
-              <div className="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
-                 <div>
-                   <span className="text-xl font-black text-white">{dailyCheckins.reduce((a,c)=>a+c.calories_eaten,0)}</span>
-                   <span className="text-[10px] text-text-muted font-mono uppercase ml-1 block">Kcal Registradas</span>
-                 </div>
-                 <Flame className="w-6 h-6 text-orange-500/50" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+                <span className="text-[10px] font-mono text-primary uppercase tracking-widest flex items-center gap-2 mb-2"><Flame className="w-3 h-3"/> Kcal Recomendada (Diaria)</span>
+                <span className="text-2xl font-black text-white">{dailyCheckins.length > 0 ? (profile?.goal === 'bajar' ? Math.round(dailyCheckins[0].tdee * 0.8) : (profile?.goal === 'subir_musculo' ? Math.round(dailyCheckins[0].tdee * 1.15) : dailyCheckins[0].tdee)) : 2200}</span>
+                <span className="text-xs text-text-muted ml-1 font-mono">kcal objetivo</span>
+              </div>
+              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest flex items-center gap-2 mb-2"><Droplet className="w-3 h-3"/> Consumo Actual Hoy</span>
+                <span className="text-2xl font-black text-white">{todayStats.eaten}</span>
+                <span className="text-xs text-text-muted ml-1 font-mono">kcal reportadas</span>
               </div>
             </div>
           </div>
@@ -399,8 +443,8 @@ export default function StatsPage() {
               <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
                 <Lock className="w-7 h-7 text-yellow-400" />
               </div>
-              <span className="text-sm font-black text-white mb-1">Análisis Energético</span>
-              <span className="text-xs text-text-secondary mb-4 w-64 text-center">Gráficas precisas alimentadas por tus Auditorías Diarias de IA</span>
+              <span className="text-sm font-black text-white mb-1">Trazador de Objetivo Físico</span>
+              <span className="text-xs text-text-secondary mb-4 w-72 text-center">Rastrea la distancia milimétrica entre tu peso actual y tu físico soñado.</span>
               <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
                 Desbloquear con PRO
               </button>
@@ -408,32 +452,44 @@ export default function StatsPage() {
           )}
         </div>
 
-        {/* PRO SECTION 3: Desempeño Deportivo (Cargado en Vivo) */}
+        {/* PRO SECTION 3: Recuperación vs Fricción (Sueño & Cardio) */}
         <div className="glass rounded-3xl border border-white/5 overflow-hidden relative">
           <div className={`p-8 ${profile?.plan !== 'pro' ? 'filter blur-[6px] select-none pointer-events-none' : ''}`}>
-            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Desglose Deportivo (Histórico)</h2>
-            <p className="text-text-secondary text-sm mb-6">El volumen puro de tu esfuerzo deportivo en base de datos.</p>
+            <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-2">Recuperación vs Desgaste (Híbrido)</h2>
+            <p className="text-text-secondary text-sm mb-6">Correlación entre tu descanso celular y tu fatiga cardiovascular.</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 bg-cyan-500/5 rounded-2xl border border-cyan-500/10 relative overflow-hidden flex flex-col justify-center">
-                <Activity className="absolute -right-4 -top-4 w-32 h-32 text-cyan-500/10" />
-                <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-mono mb-2 flex items-center gap-2"><Activity className="w-3 h-3"/> Volumen Cardio</span>
-                <div className="flex items-baseline gap-2">
-                   <span className="text-5xl font-black text-white">{stats.cardio.totalMins}</span>
-                   <span className="text-sm font-bold text-text-muted">Minutos</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 bg-cyan-500/5 rounded-2xl border border-cyan-500/10 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+                  <Activity className="w-5 h-5 text-cyan-400" />
                 </div>
-                <p className="text-xs text-cyan-100/60 mt-2 font-mono">{stats.cardio.count} Sesiones Registradas</p>
+                <div>
+                  <span className="text-[10px] text-cyan-400 uppercase tracking-widest font-mono">Horas en Cardio</span>
+                  <div className="text-3xl font-black text-white">{(stats.cardio.totalMins / 60).toFixed(1)} <span className="text-xs font-normal text-text-muted">hrs</span></div>
+                </div>
               </div>
 
-              <div className="p-6 bg-white/5 rounded-2xl border border-white/10 relative overflow-hidden flex flex-col justify-center">
-                <Dumbbell className="absolute -right-4 -top-4 w-32 h-32 text-white/5" />
-                <span className="text-[10px] text-text-muted uppercase tracking-widest font-mono mb-2 flex items-center gap-2"><Dumbbell className="w-3 h-3"/> Fuerza Bruta</span>
-                <div className="flex items-baseline gap-2">
-                   <span className="text-5xl font-black text-white">{stats.workouts.count}</span>
-                   <span className="text-sm font-bold text-text-muted">Rutinas</span>
+              <div className="p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  <Moon className="w-5 h-5 text-blue-400" />
                 </div>
-                <p className="text-xs text-text-muted mt-2 font-mono">{(stats.workouts.count * 45)} Minutos de Tensión</p>
+                <div>
+                  <span className="text-[10px] text-blue-400 uppercase tracking-widest font-mono">Horas Promedio de Sueño</span>
+                  <div className="text-3xl font-black text-white">{stats.sleep.avgSleep.toFixed(1)} <span className="text-xs font-normal text-text-muted">hrs/día</span></div>
+                </div>
               </div>
+            </div>
+
+            <div className="mt-4 p-5 bg-white/5 rounded-2xl border border-white/10 flex gap-4 items-start">
+               <Heart className="w-5 h-5 text-primary shrink-0 mt-1" />
+               <div>
+                 <span className="text-xs font-bold text-white mb-1 block">Análisis Biométrico Simulado</span>
+                 <p className="text-sm text-text-secondary leading-relaxed font-mono">
+                   {stats.sleep.avgSleep >= 7 
+                     ? "Descanso en nivel óptimo. Continúa con tu volumen actual de desgaste cardiovascular. Tu sistema nervioso central está compensando la fatiga agresivamente." 
+                     : "Alerta de Recuperación. Tienes un volumen de cardio o estrés físico que no está siendo recompensado con horas suficientes de fase REM. Ajusta tu horario de cama para evitar lesiones u overtraining."}
+                 </p>
+               </div>
             </div>
           </div>
           {/* PRO Overlay */}
@@ -442,8 +498,8 @@ export default function StatsPage() {
               <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-4">
                 <Lock className="w-7 h-7 text-yellow-400" />
               </div>
-              <span className="text-sm font-black text-white mb-1">Volumen de Rendimiento</span>
-              <span className="text-xs text-text-secondary mb-4 w-72 text-center">Accede a tus estadísticas deportivas crudas y compárate contigo mismo.</span>
+              <span className="text-sm font-black text-white mb-1">Analítica Biométrica Híbrida</span>
+              <span className="text-xs text-text-secondary mb-4 w-72 text-center">Correlaciona tu carga de entrenamiento con tu calidad de descanso profundo.</span>
               <button className="h-10 px-6 rounded-xl bg-linear-to-r from-yellow-500 to-orange-500 text-background font-black text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:scale-105 active:scale-95 transition-all">
                 Desbloquear con PRO
               </button>

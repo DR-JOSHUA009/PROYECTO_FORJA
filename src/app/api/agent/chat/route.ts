@@ -688,7 +688,73 @@ ${wikiInfo}`
                   earnedXpMessage = `\n\n⭐ **¡+25 XP Obtenidos!** Tu constancia sube de nivel.`;
                 }
 
-                confirmText = `\n\n🎯 **Auditoría Diaria Inteligente Completada.**\nHe guardado tu resumen en la base de datos y actualizado tus barras de rendimiento.\n\n📊 **DESGLOSE MATEMÁTICO:**\n- 🍽️ **Ingesta:** ~${checkin?.calories_eaten || 0} kcal\n- 🔥 **Gasto Básico (TDEE):** ~${checkin?.tdee || 0} kcal\n- 🩸 **Gasto Entrenamiento:** ~${checkin?.calories_burned || 0} kcal\n- ⚖️ **Balance Total:** ${checkin?.balance || "0"} kcal (${checkin?.label || "Procesado"})\n\n🧠 **LECTURA:**\n${checkin?.reading || "Todo en orden."}\n\n${checkin?.recommendation ? `💡 **RECOMENDACIÓN:**\n${checkin.recommendation}` : ""}${earnedXpMessage}\n\n*Nota: Tu gráfica dinámica ya se actualizó en la pantalla de Stats.*`;
+                let foodsBreakdown = "";
+                if (foods && foods.length > 0) {
+                  foodsBreakdown = foods.map((f: any, i: number) => `\n${i + 1}) ${f.meal_type || "Comida"}\n• ${f.name}\n≈ ${f.calories || 0} kcal`).join("\n");
+                } else {
+                  foodsBreakdown = "\nSin registros de comida.";
+                }
+
+                let cardioBreakdown = "";
+                if (cardio_sessions && cardio_sessions.length > 0) {
+                  cardioBreakdown = cardio_sessions.map((c: any) => `\n${c.activity} (${c.duration_min || 0} min)\n👉 ~${Math.round((checkin?.calories_burned || 0) / cardio_sessions.length)} kcal`).join("\n");
+                } else {
+                  cardioBreakdown = `\nEntrenamiento\n👉 ~${checkin?.calories_burned || 0} kcal`;
+                }
+
+                const tdee = checkin?.tdee || 2500;
+                const eaten = checkin?.calories_eaten || 0;
+                const burned = checkin?.calories_burned || 0;
+                const totalBurn = tdee + burned;
+                const isDeficit = eaten < totalBurn;
+                const difference = Math.abs(totalBurn - eaten);
+
+                confirmText = `
+🍽️ **Calorías consumidas totales (promedio)**
+${foodsBreakdown}
+
+🔢 **Total consumido**
+👉 **${eaten} kcal**
+
+---
+
+🔥 **Calorías gastadas totales (promedio)**
+
+Gasto base del día (estar vivo + moverte poco)
+👉 **${tdee} kcal**
+${cardioBreakdown}
+
+🔢 **Total gastado**
+👉 **${totalBurn} kcal**
+
+---
+
+📉 **${isDeficit ? "Déficit" : "Superávit"} aproximado**
+
+${totalBurn} - ${eaten} = ${difference} kcal
+
+👉 **${isDeficit ? "Déficit" : "Superávit"}: ~${difference} kcal**
+
+---
+
+✅ **Resumen limpio**
+Consumiste: ${eaten} kcal
+Gastaste: ${totalBurn} kcal
+${isDeficit ? "Déficit" : "Superávit"}: ${difference} kcal
+
+---
+
+🧠 **Mi lectura honesta:**
+
+👉 **${checkin?.label || "Procesado"}**
+${checkin?.reading || "Todo en orden."}
+
+**En corto:**
+${checkin?.recommendation ? `• ${checkin.recommendation}` : "Manten el ritmo."}
+
+Si quieres, te puedo decir si ese fue un buen día o mal día para tu objetivo final sin perder nivel.
+${earnedXpMessage}
+`;
               }
               // --- TOOL: search_wikipedia (Internet Search) ---
               else if (tool.name === "search_wikipedia") {
