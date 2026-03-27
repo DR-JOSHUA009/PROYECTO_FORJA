@@ -679,8 +679,6 @@ ${wikiInfo}`
                 }
 
                 confirmText = `\n\n🎯 **Métricas Inyectadas.** He analizado tu día y todos tus alimentos y actividades ya se sumaron a tus estadísticas maestras.\n\n📊 **Balance:** ${checkin?.label || "Procesado"} | ${checkin?.balance || ""}\n🧠 **Mi Lectura:** ${checkin?.reading || "Todo en orden."}\n${checkin?.recommendation ? `💡 **Recomendación:** ${checkin.recommendation}` : ""}\n\n*Nota DURA: Puedes consultar y leer tu Check-In en la pantalla de Stats.*`;
-                // Skip the generic confirmText flow for this tool
-                continue;
               }
               // --- TOOL: search_wikipedia (Internet Search) ---
               else if (tool.name === "search_wikipedia") {
