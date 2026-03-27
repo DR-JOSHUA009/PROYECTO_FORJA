@@ -368,9 +368,10 @@ export async function POST(req: Request) {
           const activeTools = toolCallsBuffer.filter(t => t.name);
           if (activeTools.length > 0) {
             for (const tool of activeTools) {
-              const args = JSON.parse(tool.args || "{}");
-              let confirmText = "";
-              const today = new Date().toISOString().split('T')[0];
+              try {
+                const args = JSON.parse(tool.args || "{}");
+                let confirmText = "";
+                const today = new Date().toISOString().split('T')[0];
 
               // --- TOOL: update_routine_day (requiere confirmación) ---
               if (tool.name === "update_routine_day") {
@@ -503,15 +504,15 @@ export async function POST(req: Request) {
                 // 1. Obtener todo lo consumido HOY
                 const { data: todayFood } = await supabase
                   .from("food_logs")
-                  .select("food_name, calories, protein_g, carbs_g, fat_g")
+                  .select("food_name, calories, protein, carbs, fats")
                   .eq("user_id", user.id)
                   .eq("date", today);
 
                 const consumed = {
                   calories: (todayFood || []).reduce((sum, f) => sum + (Number(f.calories) || 0), 0),
-                  protein: (todayFood || []).reduce((sum, f) => sum + (Number(f.protein_g) || 0), 0),
-                  carbs: (todayFood || []).reduce((sum, f) => sum + (Number(f.carbs_g) || 0), 0),
-                  fat: (todayFood || []).reduce((sum, f) => sum + (Number(f.fat_g) || 0), 0),
+                  protein: (todayFood || []).reduce((sum, f) => sum + (Number(f.protein) || 0), 0),
+                  carbs: (todayFood || []).reduce((sum, f) => sum + (Number(f.carbs) || 0), 0),
+                  fat: (todayFood || []).reduce((sum, f) => sum + (Number(f.fats) || 0), 0),
                 };
 
                 // 2. Calcular objetivos basados en el perfil (misma fórmula que el dashboard)
@@ -637,7 +638,14 @@ ${wikiInfo}`
                 // 1. Guardar cada comida suelta (hace que las Stats globales y Dashboard crezcan)
                 if (foods && foods.length > 0) {
                   const foodInserts = foods.map((f: any) => ({
-                    user_id: user.id, date: today, food_name: f.name, calories: f.calories || 0, protein_g: f.protein_g || 0, carbs_g: f.carbs_g || 0, fat_g: f.fat_g || 0, meal_type: f.meal_type || "Snack"
+                    user_id: user.id, 
+                    date: today, 
+                    food_name: f.name || "ComIDA", 
+                    calories: f.calories || 0, 
+                    protein: f.protein_g || 0, 
+                    carbs: f.carbs_g || 0, 
+                    fats: f.fat_g || 0, 
+                    meal_type: f.meal_type || "Snack"
                   }));
                   await supabase.from("food_logs").insert(foodInserts);
                 }
@@ -670,7 +678,7 @@ ${wikiInfo}`
                   });
                 }
 
-                confirmText = `\n\n🎯 **Métricas Inyectadas.** He analizado tu día y todos tus alimentos y actividades ya se sumaron a tus estadísticas maestras.\n\n📊 **Balance:** ${checkin.label} | ${checkin.balance}\n🧠 **Mi Lectura:** ${checkin.reading}\n${checkin.recommendation ? `💡 **Recomendación:** ${checkin.recommendation}` : ""}\n\n*Nota DURA: Puedes consultar y leer tu Check-In en la pantalla de Stats.*`;
+                confirmText = `\n\n🎯 **Métricas Inyectadas.** He analizado tu día y todos tus alimentos y actividades ya se sumaron a tus estadísticas maestras.\n\n📊 **Balance:** ${checkin?.label || "Procesado"} | ${checkin?.balance || ""}\n🧠 **Mi Lectura:** ${checkin?.reading || "Todo en orden."}\n${checkin?.recommendation ? `💡 **Recomendación:** ${checkin.recommendation}` : ""}\n\n*Nota DURA: Puedes consultar y leer tu Check-In en la pantalla de Stats.*`;
                 // Skip the generic confirmText flow for this tool
                 continue;
               }
@@ -719,15 +727,19 @@ ${wikiInfo}`
 
                 continue;
               }
-
               if (confirmText) {
                 fullResponse += confirmText;
                 controller.enqueue(encoder.encode(confirmText));
               }
+            } catch (error: any) {
+              const errMsg = `\n\n⚠️ Error interno: ${error.message}`;
+              fullResponse += errMsg;
+              controller.enqueue(encoder.encode(errMsg));
             }
           }
+        }
 
-          if (fullResponse) {
+        if (fullResponse) {
              await supabase.from("agent_conversations").insert({ user_id: user.id, role: "assistant", content: fullResponse });
           }
           if (metadata) {
