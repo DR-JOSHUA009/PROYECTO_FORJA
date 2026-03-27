@@ -36,7 +36,13 @@ export default function ResetPasswordPage() {
     });
 
     if (updateError) {
-      setError(updateError.message);
+      if (updateError.message.includes("same password") || updateError.message.includes("different")) {
+        setError("La nueva contraseña debe ser diferente a la actual.");
+      } else if (updateError.message.includes("expired") || updateError.status === 401) {
+        setError("El enlace de recuperación ha expirado. Solicita uno nuevo.");
+      } else {
+        setError("Ocurrió un error al actualizar la contraseña. Inténtalo de nuevo.");
+      }
       setIsLoading(false);
     } else {
       setSuccess(true);
@@ -92,8 +98,9 @@ export default function ResetPasswordPage() {
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
-                {error}
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-xl text-center flex items-center gap-3">
+                <span className="text-lg shrink-0">⚠️</span>
+                <span>{error}</span>
               </div>
             )}
 

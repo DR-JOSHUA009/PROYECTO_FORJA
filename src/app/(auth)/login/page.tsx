@@ -29,11 +29,17 @@ export default function LoginPage() {
 
     if (authError) {
       if (authError.message === "Invalid login credentials" || authError.status === 400) {
-        setError("Contraseña o correo electrónico incorrectos. Intenta de nuevo.");
-      } else if (authError.message.includes("already registered")) { // This condition is typically for registration, but included as per instruction.
-        setError("El correo electrónico ya está registrado en el sistema.");
+        setError("Correo o contraseña incorrectos. Revisa tus datos e intenta de nuevo.");
+      } else if (authError.message.includes("already registered")) {
+        setError("Este correo ya tiene una cuenta registrada.");
+      } else if (authError.message.includes("Email not confirmed")) {
+        setError("Tu cuenta aún no está confirmada. Revisa tu bandeja de correo.");
+      } else if (authError.message.includes("Too many requests") || authError.status === 429) {
+        setError("Demasiados intentos. Espera un momento antes de volver a intentar.");
+      } else if (authError.message.includes("network") || authError.message.includes("fetch")) {
+        setError("No se pudo conectar con el servidor. Verifica tu conexión a internet.");
       } else {
-        setError(authError.message);
+        setError("Ocurrió un error inesperado. Por favor, intenta de nuevo.");
       }
       setIsLoading(false);
       return;
@@ -55,8 +61,9 @@ export default function LoginPage() {
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {error && (
-            <div className="bg-error/10 border border-error/20 text-error text-sm p-3 rounded-lg text-center font-mono">
-              [ ERROR ]: {error}
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-xl text-center flex items-center gap-3">
+              <span className="text-lg shrink-0">⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
@@ -92,7 +99,7 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full h-12 bg-white text-background font-bold rounded-xl mt-2 hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Autenticando Red..." : "Iniciar Sesión"}
+            {isLoading ? "Ingresando..." : "Iniciar Sesión"}
           </button>
         </form>
 

@@ -51,13 +51,16 @@ export async function POST(req: Request) {
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_KEY });
 
-    // ─── Cargar memorias de largo plazo ──────────────────────────────
+    // ─── Cargar memorias de largo plazo y planes actuales ────────────────
     const { data: memories } = await supabase
       .from("agent_memory")
       .select("category, fact")
       .eq("user_id", user.id)
       .order("relevance", { ascending: false })
       .limit(30);
+
+    const { data: currentRoutines } = await supabase.from("routines").select("day_of_week, exercises").eq("user_id", user.id);
+    const { data: currentDiet } = await supabase.from("diet_plans").select("meal_type, foods").eq("user_id", user.id);
 
     let memoryBlock = "";
     if (memories && memories.length > 0) {
@@ -96,6 +99,13 @@ export async function POST(req: Request) {
       - Dieta: ${profile?.diet_type || "normal"} | Restricciones: ${profile?.food_restrictions || "Ninguna"}
       - Lesiones: ${profile?.injuries || "Ninguna"} | Enfermedades: ${profile?.diseases || "Ninguna"}
       - Nivel XP: ${profile?.xp || 0} | Nivel: ${profile?.level || 1}
+
+      RUTINAS ACTUALES DEL USUARIO:
+      ${currentRoutines?.length ? currentRoutines.map(r => `${r.day_of_week}: ${r.exercises.map((e: any) => e.name).join(", ")}`).join("\n      ") : "No tiene rutina configurada."}
+
+      DIETA ACTUAL DEL USUARIO:
+      ${currentDiet?.length ? currentDiet.map(d => `${d.meal_type}: ${d.foods.map((f: any) => f.name).join(", ")}`).join("\n      ") : "No tiene dieta configurada."}
+
       ${memoryBlock}
 
       REGLAS:
@@ -106,6 +116,7 @@ export async function POST(req: Request) {
       5. Responde siempre en español.
       6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
       7. Al proponer cambios generales en los requerimientos calóricos diarios (bulk, cut, mantenimiento), usa la herramienta update_macros para registrar los nuevos valores en el perfil del usuario de forma transparente y sin requerir la confirmación (se aplica directo).
+      ${userPlan !== 'pro' ? '8. RESTRICCIÓN DE PLAN GRATUITO: Actualmente el usuario tiene el plan BÁSICO (Free). NO tienes acceso a las herramientas de modificar rutinas, modificar comidas ni recalcular macros. Si el usuario te pide cambiar un ejercicio, modificar su dieta o sus macros, DEBES decirle muy amablemente que esa es una función exclusiva de FORJA PRO, e invitarlo a mejorar su suscripción para desbloquear tu capacidad de reestructuración total.' : ''}
     `;
 
     const groqMessages = [
@@ -121,13 +132,14 @@ export async function POST(req: Request) {
         type: "function",
         function: {
           name: "update_routine_day",
-          description: "Propone cambios en la rutina de un día específico. Requiere confirmación del usuario.",
+          description: "Propone cambios en la rutina de un día específico. Requiere confirmación del usuario. IMPORTANTE: Debes devolver la lista de ejercicios COMPLETA del día, incluyendo los modificados y los NO modificados. Si omites ejercicios, se borrarán.",
           parameters: {
             type: "object",
             properties: {
               day_of_week: { type: "string", description: "Día de la semana (Lunes, Martes, etc.)" },
               exercises: {
                 type: "array",
+                description: "La lista COMPLETA de todos los ejercicios para ese día.",
                 items: {
                   type: "object",
                   properties: { name: { type: "string" }, sets: { type: "number" }, reps: { type: "string" } },
@@ -143,13 +155,14 @@ export async function POST(req: Request) {
         type: "function",
         function: {
           name: "update_diet_meal",
-          description: "Propone cambios en una comida del plan de dieta. Requiere confirmación del usuario.",
+          description: "Propone cambios en una comida del plan de dieta. Requiere confirmación del usuario. IMPORTANTE: Debes devolver la lista de alimentos COMPLETA de esa comida, incluyendo los modificados y los NO modificados.",
           parameters: {
             type: "object",
             properties: {
               meal_type: { type: "string", description: "Tipo de comida: Desayuno, Almuerzo, Merienda o Cena" },
               foods: {
                 type: "array",
+                description: "La lista COMPLETA de todos los alimentos para esa comida.",
                 items: {
                   type: "object",
                   properties: { name: { type: "string" }, quantity: { type: "string" }, calories: { type: "number" } },
@@ -244,11 +257,11 @@ export async function POST(req: Request) {
         type: "function",
         function: {
           name: "check_food_context",
-          description: "Consulta los macronutrientes ya consumidos hoy y calcula cuánto le queda disponible al usuario según sus objetivos. SIEMPRE usa esta herramienta ANTES de responder preguntas como '¿puedo comer X?', '¿me queda espacio para comer?', '¿qué debería comer?', o cualquier consulta nutricional sobre el día actual.",
+          description: "Consulta los macronutrientes ya consumidos hoy. SIEMPRE usa esta herramienta ANTES de responder si el usuario pregunta '¿puedo comer X?', pero NUNCA la uses para saludos simples, nombres, o charla casual no relacionada con nutrición o calorías.",
           parameters: {
             type: "object",
             properties: {
-              food_query: { type: "string", description: "El alimento que el usuario quiere evaluar, ej: 'pizza', '2 tacos', 'un helado'. Dejar vacío si solo quiere ver el resumen de macros disponibles." }
+              food_query: { type: "string", description: "El alimento que el usuario quiere evaluar. Dejar vacío si solo quiere ver su estado nutricional actual." }
             },
             required: []
           }
@@ -256,12 +269,17 @@ export async function POST(req: Request) {
       }
     ];
 
+    // Aplicar las restricciones del plan Free quitándole las herramientas premium
+    const availableTools = userPlan === 'pro' 
+      ? tools 
+      : tools.filter(t => !["update_routine_day", "update_diet_meal", "update_macros"].includes(t.function.name));
+
     const completion = await groq.chat.completions.create({
       messages: groqMessages,
       model: "llama-3.3-70b-versatile",
       temperature: 0.1,
       stream: true,
-      tools: tools,
+      tools: availableTools,
     });
 
     const encoder = new TextEncoder();
@@ -474,22 +492,22 @@ export async function POST(req: Request) {
 ${args.food_query ? `- El usuario pregunta si puede comer: ${args.food_query}` : "- El usuario quiere saber su estado nutricional actual"}`;
 
                 // 6. Segunda llamada a Groq con el contexto para generar respuesta natural
+                const followUpMessages = [
+                  {
+                    role: "system" as const,
+                    content: `Eres FORJA, agente IA de fitness y nutrición. Responde en español, sé conciso y motivador. 
+Usa los datos nutricionales reales a tu disposición para dar una respuesta personalizada y conversacional a lo que el USUARIO te acaba de decir. Si el usuario te acaba de hacer una pregunta directa como "¿qué comí?" o "¿puedo comer esto?", responde basado en el reporte de sistema. Si te saluda o hace otra pregunta trivial, respóndele normalmente y añade un pequeño comentario extra sobre sus macros si es oportuno.`
+                  },
+                  // INYECTAMOS LA HISTORIA DEL CHAT PARA QUE NO PIERDA EL CONTEXTO DE LO QUE DIJO EL USUARIO
+                  ...groqMessages.filter(m => m.role !== "system"),
+                  {
+                    role: "system" as const,
+                    content: `[SISTEMA INTERNO PARA LA IA]: Basado en lo que acaba de decir el usuario, aquí tienes su contexto nutricional actual para que puedas responderle con precisión: \n\n${nutritionContext}`
+                  }
+                ];
+
                 const foodFollowup = await groq.chat.completions.create({
-                  messages: [
-                    {
-                      role: "system" as const,
-                      content: `Eres FORJA, agente IA de fitness y nutrición. Responde en español, sé conciso y motivador. 
-Usa los datos nutricionales reales proporcionados para dar una respuesta personalizada y conversacional.
-Si el usuario pregunta si puede comer algo, responde directamente SÍ o NO basándote en los macros restantes, 
-explica brevemente por qué, y si aplica, sugiere una porción adecuada o alternativa.
-NO muestres tablas de datos crudos. Responde de forma natural como un coach.
-Usa emojis relevantes pero sin exagerar.`
-                    },
-                    {
-                      role: "user" as const,
-                      content: nutritionContext
-                    }
-                  ],
+                  messages: followUpMessages,
                   model: "llama-3.3-70b-versatile",
                   temperature: 0.3,
                   stream: true,

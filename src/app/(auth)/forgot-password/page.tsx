@@ -24,7 +24,13 @@ export default function ForgotPasswordPage() {
     });
 
     if (resetError) {
-      setError(resetError.message);
+      if (resetError.message.includes("Too many requests") || resetError.status === 429) {
+        setError("Demasiados intentos. Espera un momento antes de volver a intentar.");
+      } else if (resetError.message.includes("not found")) {
+        setError("No encontramos ninguna cuenta con este correo.");
+      } else {
+        setError("Ocurrió un error al procesar tu solicitud. Inténtalo de nuevo.");
+      }
       setIsLoading(false);
     } else {
       setIsLoading(false);
@@ -56,8 +62,9 @@ export default function ForgotPasswordPage() {
             </div>
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
-                {error}
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-xl text-center flex items-center gap-3">
+                <span className="text-lg shrink-0">⚠️</span>
+                <span>{error}</span>
               </div>
             )}
 
@@ -79,7 +86,7 @@ export default function ForgotPasswordPage() {
             <div className="w-16 h-16 rounded-full glass border border-white/20 flex items-center justify-center mb-6 text-white">
               <Mail className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Señal Emitida</h3>
+            <h3 className="text-xl font-bold text-white mb-2">¡Correo enviado!</h3>
             <p className="text-text-secondary text-sm mb-6">
               Revisa tu bandeja de correo (<span className="text-white font-mono">{email}</span>). Hemos enviado el enlace de recuperación.
             </p>

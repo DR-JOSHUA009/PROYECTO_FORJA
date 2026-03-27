@@ -17,6 +17,7 @@ export default function RegisterPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,13 +25,13 @@ export default function RegisterPage() {
     setError("");
 
     if (password !== confirmValue) {
-      setError("Las contraseñas no coinciden.");
+      setError("Las contraseñas no coinciden. Verifica e intenta de nuevo.");
       setIsLoading(false);
       return;
     }
 
     if (password.length < 8) {
-      setError("La contraseña de seguridad debe superar los 8 caracteres.");
+      setError("La contraseña debe tener al menos 8 caracteres.");
       setIsLoading(false);
       return;
     }
@@ -45,7 +46,17 @@ export default function RegisterPage() {
     });
 
     if (authError) {
-      setError(authError.message);
+      if (authError.message.includes("already registered") || authError.message.includes("already been registered")) {
+        setError("Este correo ya tiene una cuenta. Intenta iniciar sesión.");
+      } else if (authError.message.includes("valid email") || authError.message.includes("invalid")) {
+        setError("El correo ingresado no es válido. Revisa el formato.");
+      } else if (authError.message.includes("Too many requests") || authError.status === 429) {
+        setError("Demasiados intentos. Espera un momento antes de volver a intentar.");
+      } else if (authError.message.includes("weak password") || authError.message.includes("password")) {
+        setError("La contraseña no cumple los requisitos mínimos de seguridad.");
+      } else {
+        setError("Ocurrió un error al crear la cuenta. Inténtalo de nuevo.");
+      }
       setIsLoading(false);
       return;
     }
@@ -54,8 +65,8 @@ export default function RegisterPage() {
     if (authData.session) {
       router.push("/onboarding");
     } else {
-      // Email Confirmations ON or needs verification
-      setError("Registro exitoso. Revisa tu email para confirmar tu cuenta antes de continuar.");
+      // Email Confirmations ON
+      setSuccess("¡Cuenta creada con éxito! Revisa tu bandeja de correo para confirmar tu cuenta antes de iniciar sesión.");
       setIsLoading(false);
     }
     router.refresh();
@@ -72,8 +83,16 @@ export default function RegisterPage() {
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {error && (
-            <div className="bg-error/10 border border-error/20 text-error text-sm p-3 rounded-lg text-center font-mono">
-              [ ERROR ]: {error}
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-4 rounded-xl text-center flex items-center gap-3">
+              <span className="text-lg shrink-0">⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm p-4 rounded-xl text-center flex items-center gap-3">
+              <span className="text-lg shrink-0">✅</span>
+              <span>{success}</span>
             </div>
           )}
 

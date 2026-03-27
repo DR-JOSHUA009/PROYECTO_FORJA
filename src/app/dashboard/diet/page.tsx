@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Apple, Plus, Search, Flame } from "lucide-react";
+import { Apple, Plus, Search, Flame, Lock } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import WaterVessel from "@/components/dashboard/WaterVessel";
@@ -289,7 +289,17 @@ export default function DietModule() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-bold text-white">Plan Sugerido (IA)</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-white">Plan Sugerido (IA)</h2>
+            {profile?.plan !== 'pro' && (
+              <button 
+                onClick={() => window.location.href = "/dashboard/settings"}
+                className="hidden md:flex h-8 px-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold font-mono transition-all hover:bg-yellow-500/20"
+              >
+                <Lock className="w-3 h-3" /> Editar Dieta
+              </button>
+            )}
+          </div>
           <div className="glass rounded-2xl border border-white/5 overflow-hidden flex-1 flex flex-col">
             <div className="p-4 border-b border-white/5 bg-white/2">
               <div className="relative">

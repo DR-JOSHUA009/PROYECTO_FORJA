@@ -392,6 +392,11 @@ function ChatContent() {
               <Send className="w-4 h-4" />
             </button>
           </form>
+          {userPlan !== 'pro' && (
+            <p className="text-center text-[10px] text-white/30 font-mono tracking-widest mt-3">
+              MODO BÁSICO: <span className="text-yellow-500/50">EDICIÓN DE RUTINAS DESACTIVADA</span>
+            </p>
+          )}
         </div>
       )}
     </div>

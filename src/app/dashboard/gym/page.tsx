@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Dumbbell, Timer, History, Save, Activity, X, Play, CheckCircle, Bot, ChevronRight, Moon, Flame } from "lucide-react";
+import { Dumbbell, Timer, History, Save, Activity, X, Play, CheckCircle, Bot, ChevronRight, Moon, Flame, Crown, Lock } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,7 @@ export default function GymModule() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [userPlan, setUserPlan] = useState("free");
 
   const router = useRouter();
   const supabase = createClient();
@@ -55,6 +56,10 @@ export default function GymModule() {
     if (logsError) console.error("Error logs:", logsError);
     setHistoryLogs(logs || []);
     
+    // Fetch plan
+    const { data: pData } = await supabase.from("users_profile").select("plan").eq("user_id", user.id).single();
+    if (pData?.plan) setUserPlan(pData.plan);
+
     setLoading(false);
   }, [supabase]);
 
@@ -380,22 +385,31 @@ export default function GymModule() {
           <p className="text-text-secondary">Planificación semanal completa • <span className="text-white font-mono uppercase tracking-widest text-xs">{selectedDay}{isToday ? " (Hoy)" : ""}</span></p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={handleGenerateMasterRoutine}
-            disabled={isGenerating}
-            className="h-10 px-4 rounded-xl bg-primary text-background flex items-center gap-2 text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(9,250,211,0.2)] disabled:opacity-50 disabled:cursor-wait"
-          >
-            {isGenerating ? (
-              <>
-                <div className="w-4 h-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
-                Generando...
-              </>
-            ) : (
-              <>
-                <Bot className="w-4 h-4" /> Smart Generate
-              </>
-            )}
-          </button>
+          {userPlan === 'pro' ? (
+            <button 
+              onClick={handleGenerateMasterRoutine}
+              disabled={isGenerating}
+              className="h-10 px-4 rounded-xl bg-primary text-background flex items-center gap-2 text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(9,250,211,0.2)] disabled:opacity-50 disabled:cursor-wait"
+            >
+              {isGenerating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-background/20 border-t-background rounded-full animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <Bot className="w-4 h-4" /> Smart Generate
+                </>
+              )}
+            </button>
+          ) : (
+            <button 
+              onClick={() => router.push("/dashboard/settings")}
+              className="h-10 px-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 flex items-center gap-2 text-[11px] uppercase tracking-widest font-bold font-mono transition-all hover:bg-yellow-500/20 hover:scale-105"
+            >
+              <Lock className="w-3 h-3" /> Reestructurar Rutina
+            </button>
+          )}
           <button 
             onClick={() => setShowHistory(true)}
             className="h-10 px-4 rounded-xl glass border border-white/10 hover:border-white/30 text-white flex items-center gap-2 text-sm font-medium transition-colors"

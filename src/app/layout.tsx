@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import SmoothScrollProvider from "@/components/providers/SmoothScrollProvider";
+
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 
@@ -37,11 +37,9 @@ export default function RootLayout({
           enableSystem={false}
           forcedTheme="dark"
         >
-          <SmoothScrollProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
-          </SmoothScrollProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
