@@ -300,13 +300,7 @@ export default function DietModule() {
               </button>
             )}
           </div>
-          <div className="glass rounded-2xl border border-white/5 overflow-hidden flex-1 flex flex-col">
-            <div className="p-4 border-b border-white/5 bg-white/2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                <input type="text" placeholder="Buscar en base de datos maestros..." className="w-full h-10 bg-background border border-white/10 rounded-lg pl-10 pr-4 text-sm text-white outline-none focus:border-white transition-colors" />
-              </div>
-            </div>
+          <div className="glass rounded-2xl border border-white/5 overflow-hidden flex-1 flex flex-col mt-4">
 
             <div className="flex-1 overflow-y-auto max-h-[600px] scrollbar-hide">
               {dietPlans.length > 0 ? dietPlans.map((meal, idx) => (
@@ -354,7 +348,8 @@ export default function DietModule() {
               )) : (
                 <div className="flex flex-col items-center justify-center p-20 text-center text-text-secondary">
                   <span className="mb-2 opacity-30"><Apple className="w-12 h-12"/></span>
-                  <span className="text-sm font-mono tracking-widest uppercase text-xs">Sin planificación actual</span>
+                  <span className="text-sm font-mono tracking-widest uppercase text-xs mb-2">Sin planificación de dieta actual</span>
+                  <span className="text-[10px] text-text-muted">Ve al chat con la IA y pídele que te genere un plan nutricional a medida.</span>
                 </div>
               )}
             </div>

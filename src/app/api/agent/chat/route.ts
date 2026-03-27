@@ -124,11 +124,11 @@ export async function POST(req: Request) {
       5. Responde siempre en español.
       6. IMPORTANTE: Cuando el usuario pregunte si puede comer algo específico, si le queda espacio para comer, o pida consejo nutricional sobre qué comer ahora, SIEMPRE usa primero la herramienta check_food_context para consultar los macros ya consumidos hoy y lo que le queda disponible. Usa esos datos reales para dar una respuesta precisa y personalizada.
       7. Al proponer cambios generales en los requerimientos calóricos diarios (bulk, cut, mantenimiento), usa la herramienta update_macros para registrar los nuevos valores en el perfil del usuario de forma transparente y sin requerir la confirmación (se aplica directo).
-      8. FUNCIÓN PRO ESTRELLA (Smart Daily Check-In): SIEMPRE que el usuario mencione lo que comió, almorzó, desayunó, cenó o entrenó HOY (palabras clave: "comí", "entrené", "fui a", "desayuné", "hice"), DEBES usar la herramienta 'process_daily_checkin'. 
-         - Infiere de manera razonable y experta los macros (Calorías, Prot, Carbs, Grasas) de sus menciones sueltas sin exigir precisión.
-         - Si no menciona duración, asume 75 minutos promedio (ej. para BJJ). Calcula el TDEE base + Actividad.
-         - Elige una etiqueta para el balance del día ("Agresivo / Moderado / Mantenimiento / Superávit"). Si el déficit > 1200 kcal, es "Déficit Agresivo Peligroso". Si consume < 1400kcal y hace BJJ, alerta severamente su rendimiento.
-         - Escribe una Lectura humana y experta de cómo le fue. Recomiéndale qué cenar si le faltan macros o tiene un agujero calórico agresivo.
+      8. FUNCIÓN PRO ESTRELLA (Smart Daily Check-In):
+         - Si el usuario dice que comió algo pero NO especifica en qué momento del día (Desayuno, Almuerzo, Cena o Merienda), DEBES preguntarle en qué tiempo de comida fue ANTES de usar process_daily_checkin. NUNCA asumas el tiempo de comida.
+         - Solo usa 'process_daily_checkin' cuando sepas qué comió Y en qué tiempo de comida lo hizo.
+         - Registra SOLO los alimentos que el usuario te mencione. Está estrictamente PROHIBIDO inventar cosas (agua, acompañamientos de la nada).
+         - Infiere los macros (Calorías, Prot, Carbs, Grasas) de sus menciones de forma experta. Si entrenó, calcula el gasto. Genera una lectura experta de cómo le fue y cierra recomendando algo para la noche si es necesario.
       ${userPlan !== 'pro' ? '9. RESTRICCIÓN DE PLAN GRATUITO: Actualmente el usuario tiene el plan BÁSICO (Free). NO tienes acceso a las herramientas de modificar rutinas, modificar comidas ni recalcular macros. Tampoco tienes conexión a internet para buscar información externa (Wikipedia). Si el usuario te pide cambiar su plan o investigar conceptos externos, DEBES decirle muy amablemente que esas capacidades son exclusivas de FORJA PRO, e invitarlo a mejorar su suscripción.' : ''}
     `;
 
@@ -690,9 +690,9 @@ ${wikiInfo}`
 
                 let foodsBreakdown = "";
                 if (foods && foods.length > 0) {
-                  foodsBreakdown = foods.map((f: any, i: number) => `\n${i + 1}) ${f.meal_type || "Comida"}\n• ${f.name}\n≈ ${f.calories || 0} kcal`).join("\n");
+                  foodsBreakdown = `| Tiempo | Alimento | Kcal |\n|:---|:---|:---|\n` + foods.map((f: any) => `| **${f.meal_type || "Snack"}** | ${f.name} | ${Math.round(f.calories || 0)} kcal |`).join("\n");
                 } else {
-                  foodsBreakdown = "\nSin registros de comida.";
+                  foodsBreakdown = "*Sin registros de alimentos en este corte.*";
                 }
 
                 let cardioBreakdown = "";
@@ -710,47 +710,31 @@ ${wikiInfo}`
                 const difference = Math.abs(totalBurn - eaten);
 
                 confirmText = `
-🍽️ **Calorías consumidas totales (promedio)**
+### Auditoría Diaria Procesada 🧠
+
 ${foodsBreakdown}
 
-🔢 **Total consumido**
-👉 **${eaten} kcal**
+**Total Consumido Hoy:** \`${eaten} kcal\`
 
 ---
 
-🔥 **Calorías gastadas totales (promedio)**
-
-Gasto base del día (estar vivo + moverte poco)
-👉 **${tdee} kcal**
+🔥 **Esfuerzo Físico y Gasto:**
+* TDEE Base Fisiológico: \`${tdee} kcal\`
 ${cardioBreakdown}
 
-🔢 **Total gastado**
-👉 **${totalBurn} kcal**
+**Gasto Metabólico Total:** \`${totalBurn} kcal\`
 
 ---
 
-📉 **${isDeficit ? "Déficit" : "Superávit"} aproximado**
+📊 **Balance Matemático (${isDeficit ? "Déficit" : "Superávit"}):**
+> \`${totalBurn} kcal (gasto)\` - \`${eaten} kcal (ingreso)\` = **${difference} kcal de diferencia.**
 
-${totalBurn} - ${eaten} = ${difference} kcal
-
-👉 **${isDeficit ? "Déficit" : "Superávit"}: ~${difference} kcal**
-
----
-
-✅ **Resumen limpio**
-Consumiste: ${eaten} kcal
-Gastaste: ${totalBurn} kcal
-${isDeficit ? "Déficit" : "Superávit"}: ${difference} kcal
-
----
-
-🧠 **Mi lectura honesta:**
-
-👉 **${checkin?.label || "Procesado"}**
+**Lectura Oficial de FORJA:**
+👉 *${checkin?.label || "Procesado"}*
 ${checkin?.reading || "Todo en orden."}
 
 **En corto:**
-${checkin?.recommendation ? `• ${checkin.recommendation}` : "Manten el ritmo."}
+${checkin?.recommendation ? `• ${checkin.recommendation}` : "Mantén el ritmo."}
 
 Si quieres, te puedo decir si ese fue un buen día o mal día para tu objetivo final sin perder nivel.
 ${earnedXpMessage}
