@@ -87,16 +87,40 @@ export default function StatsPage() {
       });
 
       const todayStr = new Date().toISOString().split('T')[0];
-      const todayEaten = food?.filter(f => f.date === todayStr).reduce((acc, f) => acc + Number(f.calories || 0), 0) || 0;
+      const todayFood = food?.filter(f => f.date === todayStr) || [];
+      const todayEaten = todayFood.reduce((acc, f) => acc + Number(f.calories || 0), 0);
+      const todayProtein = todayFood.reduce((acc, f) => acc + Number(f.protein || 0), 0);
+      const todayCarbs = todayFood.reduce((acc, f) => acc + Number(f.carbs || 0), 0);
+      const todayFats = todayFood.reduce((acc, f) => acc + Number(f.fats || 0), 0);
+      const todayMeals = new Set(todayFood.map(f => f.meal_type)).size;
       const todayCardioCount = cardio?.filter(c => c.date === todayStr).length || 0;
       let todayBurned = cardio?.filter(c => c.date === todayStr).reduce((acc, c) => acc + (Number(c.duration_min || 0) * 10), 0) || 0;
       const todayWorkouts = workouts?.filter(w => w.created_at?.split('T')[0] === todayStr).length || 0;
       todayBurned += todayWorkouts * 300;
+
+      const todayWater = water?.filter(w => w.date === todayStr).reduce((acc, w) => acc + Number(w.amount_ml || 0), 0) || 0;
+      const todaySleep = sleep?.find(s => s.date === todayStr);
+
+      // Calculate target calories from profile
+      const weight = Number(profileData?.weight_kg) || 70;
+      const intensityMult = profileData?.intensity === "alta" ? 1.6 : profileData?.intensity === "media" ? 1.4 : 1.2;
+      let computedTargetCals = Math.round(weight * 22 * intensityMult);
+      if (profileData?.goal === "cut") computedTargetCals -= 500;
+      if (profileData?.goal === "bulk") computedTargetCals += 300;
+      const targetCals = profileData?.target_calories || computedTargetCals;
       
       setTodayStats({
         eaten: todayEaten,
         burned: todayBurned,
         activities: todayCardioCount + todayWorkouts,
+        protein: Math.round(todayProtein),
+        carbs: Math.round(todayCarbs),
+        fats: Math.round(todayFats),
+        meals: todayMeals,
+        water: todayWater,
+        sleepHours: todaySleep ? Number(todaySleep.hours_slept) : null,
+        targetCals,
+        netBalance: todayEaten - todayBurned,
       });
 
       setLoading(false);
@@ -235,22 +259,88 @@ export default function StatsPage() {
         </div>
       </div>
 
-      {/* ===== FREE TIER: RESUMEN DE HOY ===== */}
+      {/* ===== FREE TIER: RESUMEN INTELIGENTE DE HOY ===== */}
       <div className="glass p-6 md:p-8 rounded-3xl border border-white/5 mb-8">
-        <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted mb-6">Tu Seguimiento de Hoy</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-5 bg-white/5 rounded-2xl flex flex-col justify-center items-center text-center border border-white/5">
-            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-2 flex items-center gap-2"><Target className="w-3 h-3 text-primary" /> Actividad Realizada</span>
-            <span className="text-4xl font-black text-white">{todayStats.activities} <span className="text-sm text-text-muted font-normal">sesiones</span></span>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-text-muted">Tu Seguimiento de Hoy</h2>
+          <span className="text-[10px] font-mono text-text-muted">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+        </div>
+        
+        {/* Main calorie balance */}
+        <div className="p-5 bg-white/5 rounded-2xl border border-white/5 mb-6 relative overflow-hidden">
+          <div className="absolute top-0 w-full h-1 bg-linear-to-r from-orange-400 via-yellow-400 to-green-400" />
+          <div className="flex justify-between items-end mb-3">
+            <div>
+              <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-1 block">Calorías Consumidas / Objetivo</span>
+              <span className="text-3xl font-black text-white">{todayStats.eaten} <span className="text-lg text-text-muted font-normal">/ {todayStats.targetCals} kcal</span></span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-text-muted uppercase font-mono block mb-1">Restantes</span>
+              <span className={`text-xl font-black ${(todayStats.targetCals - todayStats.eaten) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {todayStats.targetCals - todayStats.eaten > 0 ? '+' : ''}{todayStats.targetCals - todayStats.eaten} kcal
+              </span>
+            </div>
           </div>
-          <div className="p-5 bg-white/5 rounded-2xl flex flex-col justify-center items-center text-center border border-white/5 relative overflow-hidden">
-            <div className="absolute top-0 w-full h-1 bg-linear-to-r from-orange-400 to-red-500" />
-            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-2 flex items-center gap-2"><Flame className="w-3 h-3 text-orange-400" /> Kcal Quemadas Est.</span>
-            <span className="text-4xl font-black text-white">{todayStats.burned} <span className="text-sm text-text-muted font-normal">kcal</span></span>
+          <div className="w-full h-2.5 bg-white/5 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }} 
+              animate={{ width: `${Math.min((todayStats.eaten / todayStats.targetCals) * 100, 100)}%` }}
+              className={`h-full rounded-full ${
+                todayStats.eaten > todayStats.targetCals ? 'bg-red-400' : 
+                todayStats.eaten > todayStats.targetCals * 0.8 ? 'bg-yellow-400' : 'bg-emerald-400'
+              }`}
+            />
           </div>
-          <div className="p-5 bg-white/5 rounded-2xl flex flex-col justify-center items-center text-center border border-white/5">
-            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-2 flex items-center gap-2"><Activity className="w-3 h-3 text-cyan-400" /> Kcal Consumidas</span>
-            <span className="text-4xl font-black text-white">{todayStats.eaten} <span className="text-sm text-text-muted font-normal">kcal</span></span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Macros */}
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-1 block">Proteína</span>
+            <span className="text-2xl font-black text-white">{todayStats.protein}<span className="text-xs text-text-muted font-normal">g</span></span>
+          </div>
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-1 block">Carbos</span>
+            <span className="text-2xl font-black text-white">{todayStats.carbs}<span className="text-xs text-text-muted font-normal">g</span></span>
+          </div>
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center">
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-1 block">Grasas</span>
+            <span className="text-2xl font-black text-white">{todayStats.fats}<span className="text-xs text-text-muted font-normal">g</span></span>
+          </div>
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center relative overflow-hidden">
+            <div className="absolute top-0 w-full h-0.5 bg-blue-400/40" />
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-1 flex items-center gap-1 justify-center"><Droplet className="w-2.5 h-2.5 text-blue-400" /> Agua</span>
+            <span className="text-2xl font-black text-white">{(todayStats.water / 1000).toFixed(1)}<span className="text-xs text-text-muted font-normal">L</span></span>
+          </div>
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/5 text-center relative overflow-hidden">
+            <div className="absolute top-0 w-full h-0.5 bg-blue-600/40" />
+            <span className="text-[10px] text-text-secondary uppercase font-mono tracking-widest mb-1 flex items-center gap-1 justify-center"><Moon className="w-2.5 h-2.5 text-blue-400" /> Sueño</span>
+            <span className="text-2xl font-black text-white">
+              {todayStats.sleepHours != null ? `${todayStats.sleepHours.toFixed(1)}` : '—'}
+              <span className="text-xs text-text-muted font-normal">h</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Smart verdict */}
+        <div className="mt-6 p-4 bg-white/3 rounded-2xl border border-white/5">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <span className="text-[10px] text-primary uppercase tracking-widest font-mono block mb-1">Veredicto del Día</span>
+              <span className="text-sm text-white/80 leading-relaxed">
+                {todayStats.eaten === 0 
+                  ? 'Aún no has registrado alimentos hoy. Empieza tu seguimiento desde la sección de Nutrición o el Agente IA.'
+                  : todayStats.eaten > todayStats.targetCals 
+                    ? `Has superado tu objetivo calórico por ${todayStats.eaten - todayStats.targetCals} kcal. ${todayStats.activities > 0 ? 'Al menos registraste actividad física.' : 'Considera una sesión de cardio para compensar.'}`
+                    : todayStats.eaten > todayStats.targetCals * 0.8
+                      ? `Vas bien — te quedan ${todayStats.targetCals - todayStats.eaten} kcal por llenar. ${todayStats.protein < 100 ? 'Prioriza proteína en tu próxima comida.' : 'Buen balance de proteína.'}`
+                      : `Llevas ${todayStats.eaten} de ${todayStats.targetCals} kcal. ${todayStats.meals < 3 ? `Solo ${todayStats.meals || 0} tiempos de comida registrados.` : 'Buen ritmo de comidas.'} ${todayStats.water < 1500 ? 'Recuerda hidratarte más.' : '💧'}`
+                }
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -398,11 +488,11 @@ export default function StatsPage() {
                  <div className="flex justify-between items-end mb-4 relative z-10">
                    <div>
                      <span className="text-[10px] font-mono uppercase text-text-muted block mb-1">Peso Actual</span>
-                     <span className="text-3xl font-black text-white">{profile?.weight || 0} kg</span>
+                     <span className="text-3xl font-black text-white">{profile?.weight_kg || 0} kg</span>
                    </div>
                    <div className="text-right">
                      <span className="text-[10px] font-mono uppercase text-text-muted block mb-1">Objetivo</span>
-                     <span className="text-3xl font-black text-primary">{profile?.target_weight || 0} kg</span>
+                     <span className="text-3xl font-black text-primary">{profile?.target_weight || profile?.weight_kg || 0} kg</span>
                    </div>
                  </div>
                  
@@ -410,13 +500,18 @@ export default function StatsPage() {
                     <div 
                       className="h-full bg-linear-to-r from-primary to-cyan-400 rounded-full" 
                       style={{ 
-                        width: `${Math.min(
-                          (profile?.target_weight && profile?.weight 
-                            ? (profile.goal === 'bajar' 
-                                ? ((100 - profile.weight) / (100 - profile.target_weight) * 100) 
-                                : (profile.weight / profile.target_weight * 100)
-                              ) 
-                            : 0), 100)}%` 
+                        width: `${(() => {
+                          const current = Number(profile?.weight_kg) || 0;
+                          const target = Number(profile?.target_weight) || current;
+                          if (!current || !target || current === target) return 100;
+                          if (profile?.goal === 'bajar') {
+                            // Para bajar: progreso = qué tan cerca estoy del target (menor)
+                            const start = current > target ? current + 10 : current; // arbitrary start
+                            return Math.min(Math.max(((start - current) / (start - target)) * 100, 0), 100);
+                          }
+                          // Para subir/mantener: progreso lineal
+                          return Math.min((current / target) * 100, 100);
+                        })()}%` 
                       }} 
                     />
                  </div>

@@ -10,6 +10,174 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+// Simple markdown renderer for agent messages
+function RenderMarkdown({ content }: { content: string }) {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let tableLines: string[] = [];
+  let inTable = false;
+
+  const processInline = (text: string): React.ReactNode[] => {
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let keyIdx = 0;
+
+    while (remaining.length > 0) {
+      // Bold-italic
+      const boldItalicMatch = remaining.match(/\*\*\*(.*?)\*\*\*/);
+      // Bold
+      const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
+      // Italic  
+      const italicMatch = remaining.match(/\*(.*?)\*/);
+      // Inline code
+      const codeMatch = remaining.match(/`([^`]+)`/);
+      // Emoji shorthand already renders as-is
+
+      let firstMatch: { index: number; length: number; node: React.ReactNode } | null = null;
+      const updateMatch = (candidate: { index: number; length: number; node: React.ReactNode }) => {
+        if (!firstMatch || candidate.index < firstMatch.index) firstMatch = candidate;
+      };
+
+      if (boldItalicMatch && boldItalicMatch.index !== undefined) {
+        updateMatch({ index: boldItalicMatch.index, length: boldItalicMatch[0].length, node: <strong key={`bi-${keyIdx++}`} className="font-black italic text-white">{boldItalicMatch[1]}</strong> });
+      }
+      if (boldMatch && boldMatch.index !== undefined) {
+        updateMatch({ index: boldMatch.index, length: boldMatch[0].length, node: <strong key={`b-${keyIdx++}`} className="font-bold text-white">{boldMatch[1]}</strong> });
+      }
+      if (italicMatch && italicMatch.index !== undefined && (!boldMatch || italicMatch.index !== boldMatch.index)) {
+        updateMatch({ index: italicMatch.index, length: italicMatch[0].length, node: <em key={`i-${keyIdx++}`} className="italic text-white/80">{italicMatch[1]}</em> });
+      }
+      if (codeMatch && codeMatch.index !== undefined) {
+        updateMatch({ index: codeMatch.index, length: codeMatch[0].length, node: <code key={`c-${keyIdx++}`} className="px-1.5 py-0.5 bg-white/10 rounded text-primary text-xs font-mono">{codeMatch[1]}</code> });
+      }
+
+      const match = firstMatch as { index: number; length: number; node: React.ReactNode } | null;
+      if (match) {
+        if (match.index > 0) {
+          parts.push(remaining.substring(0, match.index));
+        }
+        parts.push(match.node);
+        remaining = remaining.substring(match.index + match.length);
+      } else {
+        parts.push(remaining);
+        break;
+      }
+    }
+    return parts;
+  };
+
+  const flushTable = () => {
+    if (tableLines.length < 2) return;
+    const headers = tableLines[0].split('|').filter(c => c.trim());
+    const rows = tableLines.slice(2).map(r => r.split('|').filter(c => c.trim())); // skip separator line
+    
+    elements.push(
+      <div key={`table-${elements.length}`} className="overflow-x-auto my-3">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-white/10">
+              {headers.map((h, i) => (
+                <th key={i} className="text-left px-3 py-2 text-[10px] uppercase tracking-widest text-text-muted font-mono">{processInline(h.trim())}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                {row.map((cell, ci) => (
+                  <td key={ci} className="px-3 py-2 text-white/80">{processInline(cell.trim())}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+    tableLines = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Table detection
+    if (trimmed.includes('|') && trimmed.startsWith('|')) {
+      inTable = true;
+      tableLines.push(trimmed);
+      continue;
+    } else if (inTable) {
+      flushTable();
+      inTable = false;
+    }
+
+    // Empty line
+    if (!trimmed) {
+      elements.push(<div key={`s-${i}`} className="h-2" />);
+      continue;
+    }
+
+    // Headers
+    if (trimmed.startsWith('### ')) {
+      elements.push(<h4 key={i} className="text-sm font-black text-white mt-4 mb-2 uppercase tracking-wider">{processInline(trimmed.slice(4))}</h4>);
+      continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      elements.push(<h3 key={i} className="text-base font-black text-white mt-4 mb-2">{processInline(trimmed.slice(3))}</h3>);
+      continue;
+    }
+
+    // Horizontal rule
+    if (trimmed === '---' || trimmed === '***') {
+      elements.push(<hr key={i} className="border-white/10 my-3" />);
+      continue;
+    }
+
+    // Blockquote
+    if (trimmed.startsWith('> ')) {
+      elements.push(
+        <div key={i} className="border-l-2 border-primary/40 pl-4 py-1 my-2 bg-primary/5 rounded-r-lg">
+          <span className="text-sm text-white/90">{processInline(trimmed.slice(2))}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // List items
+    if (trimmed.startsWith('• ') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const content = trimmed.slice(2);
+      elements.push(
+        <div key={i} className="flex items-start gap-2 ml-2 my-0.5">
+          <span className="w-1 h-1 rounded-full bg-primary mt-2 shrink-0" />
+          <span className="text-sm text-white/90">{processInline(content)}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // Numbered list
+    const numberedMatch = trimmed.match(/^(\d+)\)\s+(.*)/);
+    if (numberedMatch) {
+      elements.push(
+        <div key={i} className="flex items-start gap-2 ml-2 my-1">
+          <span className="text-xs font-mono text-primary font-bold mt-0.5 shrink-0">{numberedMatch[1]}.</span>
+          <span className="text-sm text-white/90">{processInline(numberedMatch[2])}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(<p key={i} className="text-sm text-white/90 leading-relaxed">{processInline(trimmed)}</p>);
+  }
+
+  // flush any remaining table
+  if (inTable) flushTable();
+
+  return <div className="flex flex-col gap-0.5">{elements}</div>;
+}
+
 function ConfirmCard({ data, onConfirm }: { data: any, onConfirm: () => void }) {
   const [applied, setApplied] = useState(false);
   
@@ -309,7 +477,11 @@ function ChatContent() {
               <div className={`p-6 rounded-3xl flex flex-col justify-center text-[15px] leading-relaxed relative ${
                 msg.role === "agent" ? "bg-white/5 text-white/90 border border-white/5 rounded-tl-none" : "bg-white text-black rounded-tr-none font-bold"
               }`}>
-                <div className="whitespace-pre-wrap font-sans tracking-tight">{msg.content}</div>
+                {msg.role === "agent" ? (
+                  <RenderMarkdown content={msg.content} />
+                ) : (
+                  <div className="whitespace-pre-wrap font-sans tracking-tight">{msg.content}</div>
+                )}
                 
                 {msg.confirm && (
                   <ConfirmCard 
@@ -401,7 +573,7 @@ function ChatContent() {
               onChange={(e) => setInput(e.target.value)}
               disabled={isTyping}
               placeholder="Ej: Ajusta mi rutina de mañana..."
-              className="w-full h-16 bg-[#0a0a0a] border border-white/10 focus:border-white/40 focus:bg-white/5 rounded-3xl px-8 pr-16 text-white outline-none transition-all placeholder:text-text-muted disabled:opacity-50 text-sm shadow-2xl"
+              className="w-full h-16 bg-background border border-white/10 focus:border-white/40 focus:bg-white/5 rounded-3xl px-8 pr-16 text-white outline-none transition-all placeholder:text-text-muted disabled:opacity-50 text-sm shadow-2xl"
             />
             <button type="submit" disabled={!input.trim() || isTyping} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white text-black rounded-2xl flex items-center justify-center hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-2xl">
               <Send className="w-4 h-4" />

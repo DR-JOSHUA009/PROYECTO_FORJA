@@ -255,12 +255,16 @@ export default function DashboardHome() {
       )}
 
       {/* KPI ROW */}
+      {(() => {
+        const targetWater = 3000;
+        const waterPercentage = Math.min((waterMl / targetWater) * 100, 100);
+        return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
-          { icon: Flame, title: "Calorías Obj.", value: targetCals, sub: "kcal/día", color: "#fb923c" },
-          { icon: Dumbbell, title: "Entrenos/Sem.", value: `${weekWorkouts}/${profile?.training_days || 5}`, sub: "completados", color: "#ffffff" },
-          { icon: Moon, title: "Sueño", value: lastSleep ? `${Number(lastSleep.hours_slept).toFixed(1)}h` : "—", sub: "anoche", color: "#60a5fa" },
-          { icon: Activity, title: "Cardio", value: lastCardio ? `${lastCardio.duration_min}min` : "—", sub: lastCardio?.activity || "sin registro", color: "#22d3ee" },
+          { icon: Flame, title: "Calorías Hoy", value: `${Math.round(caloriesConsumed)}`, sub: `de ${targetCals} kcal`, color: "#fb923c", pct: Math.min((caloriesConsumed / targetCals) * 100, 100) },
+          { icon: Dumbbell, title: "Entrenos/Sem.", value: `${weekWorkouts}/${profile?.training_days || 5}`, sub: "completados", color: "#ffffff", pct: Math.min((weekWorkouts / (profile?.training_days || 5)) * 100, 100) },
+          { icon: Moon, title: "Sueño", value: lastSleep ? `${Number(lastSleep.hours_slept).toFixed(1)}h` : "—", sub: lastSleep ? (Number(lastSleep.hours_slept) >= 7 ? "✅ óptimo" : "⚠️ bajo") : "sin registro", color: "#60a5fa", pct: lastSleep ? Math.min((Number(lastSleep.hours_slept) / 8) * 100, 100) : 0 },
+          { icon: GlassWater, title: "Agua", value: `${(waterMl / 1000).toFixed(1)}L`, sub: `de ${(targetWater / 1000).toFixed(1)}L`, color: "#22d3ee", pct: waterPercentage },
         ].map((w, i) => (
           <motion.div
             key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
@@ -272,9 +276,14 @@ export default function DashboardHome() {
             </div>
             <span className="text-2xl font-bold text-white block">{w.value}</span>
             <span className="text-[10px] text-text-muted uppercase font-mono">{w.sub}</span>
+            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-3">
+              <motion.div initial={{ width: 0 }} animate={{ width: `${w.pct}%` }} className="h-full bg-white/30 rounded-full" />
+            </div>
           </motion.div>
         ))}
       </div>
+      );
+    })()}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         

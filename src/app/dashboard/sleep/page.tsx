@@ -25,13 +25,48 @@ export default function SleepModule() {
 
   const recalcStats = (data: any[]) => {
     if (data && data.length > 0) {
-      let total = 0; let streak = 0; let best = 0;
+      // Deduplicate by date (keep first/latest entry per date)
+      const uniqueByDate = new Map<string, any>();
       data.forEach(log => {
+        if (log.date && !uniqueByDate.has(log.date)) {
+          uniqueByDate.set(log.date, log);
+        }
+      });
+      const uniqueLogs = Array.from(uniqueByDate.values());
+
+      let total = 0; let best = 0;
+      uniqueLogs.forEach(log => {
         total += Number(log.hours_slept || 0);
-        if (log.hours_slept >= 7) streak++;
         if (log.hours_slept > best) best = Number(log.hours_slept);
       });
-      setStats({ avgHours: total / data.length, streak, bestNight: best });
+
+      // Calculate CONSECUTIVE streak (counting backwards from most recent)
+      const sortedDates = uniqueLogs
+        .filter(l => Number(l.hours_slept) >= 7)
+        .map(l => l.date)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+      let streak = 0;
+      if (sortedDates.length > 0) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        for (let i = 0; i < 90; i++) {
+          const checkDate = new Date(today);
+          checkDate.setDate(checkDate.getDate() - i);
+          const checkStr = checkDate.toISOString().split('T')[0];
+          
+          if (sortedDates.includes(checkStr)) {
+            streak++;
+          } else if (i === 0) {
+            continue; // Today might not have a log yet
+          } else {
+            break;
+          }
+        }
+      }
+
+      setStats({ avgHours: total / uniqueLogs.length, streak, bestNight: best });
     }
   };
 
@@ -124,7 +159,13 @@ export default function SleepModule() {
     );
   }
 
-  const chartData = [...history].reverse().slice(-7);
+  // Deduplicate by date for chart (keep latest per date)
+  const uniqueHistory = (() => {
+    const map = new Map<string, any>();
+    history.forEach(h => { if (h.date && !map.has(h.date)) map.set(h.date, h); });
+    return Array.from(map.values());
+  })();
+  const chartData = [...uniqueHistory].reverse().slice(-7);
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full">

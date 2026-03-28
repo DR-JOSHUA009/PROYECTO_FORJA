@@ -258,8 +258,8 @@ export default function DietModule() {
       </div>
 
       {/* FOOD LOGS BY MEAL */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-        <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div className="md:col-span-2 flex flex-col gap-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             Alimentos Consumidos <span className="px-2 py-0.5 bg-white/5 rounded-lg text-[10px] text-text-muted border border-white/5">HOY</span>
           </h2>
@@ -288,7 +288,7 @@ export default function DietModule() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="md:col-span-1 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-white">Plan Sugerido (IA)</h2>
             {profile?.plan !== 'pro' && (
@@ -309,7 +309,7 @@ export default function DietModule() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 + (idx * 0.1) }}
-                  className="flex items-start justify-between p-6 border-b border-white/5 hover:bg-white/5 transition-colors group"
+                  className="flex items-start justify-between p-5 border-b border-white/5 hover:bg-white/5 transition-colors group"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="text-xs text-primary font-mono font-bold">{meal.meal_type}</div>
@@ -340,16 +340,16 @@ export default function DietModule() {
                        loadDiet();
                        toast(`¡Bien! ${meal.meal_type} registrado.`, "success");
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-primary transition-colors border border-white/5 px-3 py-1.5 rounded-lg active:scale-95"
+                    className="text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-primary transition-colors border border-white/5 px-3 py-1.5 rounded-lg active:scale-95 shrink-0"
                   >
                     Registrar
                   </button>
                 </motion.div>
               )) : (
-                <div className="flex flex-col items-center justify-center p-20 text-center text-text-secondary">
-                  <span className="mb-2 opacity-30"><Apple className="w-12 h-12"/></span>
-                  <span className="text-sm font-mono tracking-widest uppercase text-xs mb-2">Sin planificación de dieta actual</span>
-                  <span className="text-[10px] text-text-muted">Ve al chat con la IA y pídele que te genere un plan nutricional a medida.</span>
+                <div className="flex flex-col items-center justify-center p-10 text-center text-text-secondary">
+                  <span className="mb-2 opacity-30"><Apple className="w-8 h-8"/></span>
+                  <span className="text-sm font-mono tracking-widest uppercase text-[11px] mb-1">Sin plan de dieta</span>
+                  <span className="text-[10px] text-text-muted leading-relaxed">Pídele a la IA un plan personalizado desde el chat.</span>
                 </div>
               )}
             </div>
